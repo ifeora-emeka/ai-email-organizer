@@ -1,5 +1,0 @@
-{
-  "app_type": "custom",
-  "dockerfile": "Dockerfile",
-  "build_type": "dockerfile"
-}

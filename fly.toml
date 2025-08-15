@@ -2,8 +2,6 @@ app = "ai-email-organizer"
 primary_region = "ord"
 
 [build]
-  dockerfile = "Dockerfile"
-  ignorefile = ".dockerignore"
 
 [env]
   NODE_ENV = "production"
@@ -15,7 +13,6 @@ primary_region = "ord"
   auto_stop_machines = "stop"
   auto_start_machines = true
   min_machines_running = 0
-  processes = ["app"]
 
 [[http_service.checks]]
   grace_period = "10s"
