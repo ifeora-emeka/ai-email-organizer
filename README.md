@@ -50,18 +50,27 @@ chmod +x deploy.sh
 
 ### Deploy (Method 2 - Manual)
 
-If you encounter the flyctl launch bug, use this workaround:
+If you encounter the flyctl launch bug or auto-detection issues, use this workaround:
 
 ```bash
 # Build locally first
 npm run build
 
-# Create the app (only needed once)
+# Create the app manually (only needed once)
 fly apps create ai-email-organizer
 
-# Deploy using local Docker build
-fly deploy --local-only
+# Deploy using local Docker build to avoid auto-detection
+fly deploy --local-only --dockerfile Dockerfile
 ```
+
+### Troubleshooting Fly.io Auto-Detection
+
+If Fly.io incorrectly detects this as a pure Next.js app instead of a custom Express server:
+
+1. Use `--local-only` flag to build Docker locally
+2. Specify `--dockerfile Dockerfile` explicitly  
+3. The `.fly/config.json` file overrides auto-detection
+4. Use the deployment scripts which handle this automatically
 
 ### Environment Variables
 

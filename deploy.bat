@@ -10,15 +10,15 @@ if !errorlevel! neq 0 (
     exit /b 1
 )
 
-echo 🐳 Building Docker image...
-docker build -t ai-email-organizer .
+echo � Checking if Fly.io app exists...
+fly status >nul 2>&1
 if !errorlevel! neq 0 (
-    echo ❌ Docker build failed!
-    exit /b 1
+    echo 🆕 Creating new Fly.io app...
+    fly apps create ai-email-organizer --org personal
 )
 
-echo 🎯 Deploying to Fly.io...
-fly deploy --local-only
+echo 🐳 Building and deploying with Docker...
+fly deploy --local-only --dockerfile Dockerfile
 if !errorlevel! neq 0 (
     echo ❌ Deployment failed!
     exit /b 1

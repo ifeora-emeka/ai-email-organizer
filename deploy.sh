@@ -7,11 +7,14 @@ echo "🚀 Starting deployment to Fly.io..."
 echo "📦 Building application locally..."
 npm run build
 
-echo "🐳 Building Docker image..."
-docker build -t ai-email-organizer .
+# Check if fly app exists, if not create it
+if ! fly status > /dev/null 2>&1; then
+    echo "🆕 Creating new Fly.io app..."
+    fly apps create ai-email-organizer --org personal
+fi
 
-echo "🎯 Deploying to Fly.io..."
-fly deploy --local-only
+echo "🐳 Building and deploying with Docker..."
+fly deploy --local-only --dockerfile Dockerfile
 
 echo "✅ Deployment complete!"
 echo "🌐 Your app should be available at: https://ai-email-organizer.fly.dev"
