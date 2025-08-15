@@ -27,7 +27,8 @@ npm start
 ### Prerequisites
 
 1. Install Fly CLI: https://fly.io/docs/flyctl/install/
-2. Sign up for Fly.io account: https://fly.io/docs/getting-started/
+2. Install Docker: https://docs.docker.com/get-docker/
+3. Sign up for Fly.io account: https://fly.io/docs/getting-started/
 
 ### Initial Setup
 
@@ -36,11 +37,30 @@ flyctl auth signup
 flyctl auth login
 ```
 
-### Deploy
+### Deploy (Method 1 - Using Deploy Script)
 
 ```bash
-flyctl launch
-flyctl deploy
+# On Windows
+deploy.bat
+
+# On Linux/Mac
+chmod +x deploy.sh
+./deploy.sh
+```
+
+### Deploy (Method 2 - Manual)
+
+If you encounter the flyctl launch bug, use this workaround:
+
+```bash
+# Build locally first
+npm run build
+
+# Create the app (only needed once)
+fly apps create ai-email-organizer
+
+# Deploy using local Docker build
+fly deploy --local-only
 ```
 
 ### Environment Variables
@@ -48,8 +68,8 @@ flyctl deploy
 Set production environment variables:
 
 ```bash
-flyctl secrets set NODE_ENV=production
-flyctl secrets set PORT=8080
+fly secrets set NODE_ENV=production
+fly secrets set PORT=8080
 ```
 
 ### Monitoring

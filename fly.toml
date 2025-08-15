@@ -17,12 +17,13 @@ primary_region = "ord"
   processes = ["app"]
 
 [[http_service.checks]]
-  grace_period = "1s"
-  interval = "15s"
+  grace_period = "10s"
+  interval = "30s"
   restart_limit = 0
-  timeout = "2s"
+  timeout = "5s"
   method = "get"
   path = "/api/v1/health"
+  protocol = "http"
 
 [[vm]]
   cpu_kind = "shared"
