@@ -26,9 +26,12 @@ export const createApp = async () => {
   
   const server = express();
 
-  server.use(limiter);
-  server.use(express.json());
-  server.use(express.urlencoded({ extended: true }));
+  server.set('trust proxy', 1);
+
+  server.use('/api/v1', limiter);
+  
+  server.use('/api/v1', express.json());
+  server.use('/api/v1', express.urlencoded({ extended: true }));
 
   server.use('/api/v1', apiRoutes);
 

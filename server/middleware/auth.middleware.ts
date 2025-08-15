@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
-import jwt from 'jsonwebtoken'
-import { prisma } from '../../lib/prisma'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '../../lib/auth'
 
 export interface AuthenticatedRequest extends Request {
     user?: {
@@ -13,54 +13,22 @@ export interface AuthenticatedRequest extends Request {
 
 export const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-        const authHeader = req.headers.authorization
+        const session = await getServerSession(req, res, authOptions)
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        if (!session?.user) {
             return res.status(401).json({
-                error: 'No authorization token provided'
+                error: 'Authentication required'
             })
         }
 
-        const token = authHeader.substring(7)
-
-        try {
-            const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
-
-            if (!decoded.sub) {
-                return res.status(401).json({
-                    error: 'Invalid token format'
-                })
-            }
-
-            const user = await prisma.user.findUnique({
-                where: { id: decoded.sub },
-                select: {
-                    id: true,
-                    email: true,
-                    name: true,
-                    image: true
-                }
-            })
-
-            if (!user) {
-                return res.status(401).json({
-                    error: 'User not found'
-                })
-            }
-
-            req.user = {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                image: user.image
-            }
-
-            next()
-        } catch (authError) {
-            return res.status(401).json({
-                error: 'Invalid or expired token'
-            })
+        req.user = {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name,
+            image: session.user.image
         }
+
+        next()
     } catch (error) {
         console.error('Auth middleware error:', error)
         return res.status(500).json({
@@ -71,39 +39,15 @@ export const requireAuth = async (req: AuthenticatedRequest, res: Response, next
 
 export const optionalAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-        const authHeader = req.headers.authorization
+        const session = await getServerSession(req, res, authOptions)
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return next()
-        }
-
-        const token = authHeader.substring(7)
-
-        try {
-            const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
-
-            if (decoded.sub) {
-                const user = await prisma.user.findUnique({
-                    where: { id: decoded.sub },
-                    select: {
-                        id: true,
-                        email: true,
-                        name: true,
-                        image: true
-                    }
-                })
-
-                if (user) {
-                    req.user = {
-                        id: user.id,
-                        email: user.email,
-                        name: user.name,
-                        image: user.image
-                    }
-                }
+        if (session?.user) {
+            req.user = {
+                id: session.user.id,
+                email: session.user.email,
+                name: session.user.name,
+                image: session.user.image
             }
-        } catch (authError) {
-            console.warn('Optional auth failed:', authError)
         }
 
         next()

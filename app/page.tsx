@@ -3,40 +3,72 @@
 
 import { Button } from "@/components/ui/button"
 import { Mail, Plus, CheckCircle, AlertCircle, Trash2 } from "lucide-react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-
-const mockConnectedAccounts = [
-  {
-    id: "1",
-    email: "john.doe@gmail.com",
-    name: "John Doe",
-    isActive: true,
-    lastSync: "2 minutes ago",
-    unreadCount: 15
-  },
-  {
-    id: "2",
-    email: "jane.smith@gmail.com",
-    name: "Jane Smith",
-    isActive: true,
-    lastSync: "5 minutes ago",
-    unreadCount: 8
-  }
-]
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useGmailAccounts, useDeleteGmailAccount, useGmailOAuth } from "@/lib/hooks"
+import { toast } from "sonner"
 
 export default function HomePage() {
-  const [accounts, setAccounts] = useState(mockConnectedAccounts)
+  const { data: accounts = [], isLoading } = useGmailAccounts()
+  const deleteGmailAccount = useDeleteGmailAccount()
+  const { initiateOAuth } = useGmailOAuth()
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
-  const handleDelete = (accountId: string) => {
-    setAccounts(accounts.filter(account => account.id !== accountId))
-    setDeleteConfirm(null)
+  useEffect(() => {
+    const gmailConnected = searchParams.get('gmail_connected')
+    const error = searchParams.get('error')
+
+    if (gmailConnected === 'true') {
+      toast.success('Gmail account connected successfully!')
+      router.replace('/')
+    } else if (error) {
+      let message = 'Failed to connect Gmail account'
+      switch (error) {
+        case 'unauthorized':
+          message = 'You must be logged in to connect Gmail'
+          break
+        case 'oauth_failed':
+          message = 'Gmail connection failed. Please try again.'
+          break
+        case 'missing_code':
+          message = 'Gmail authorization was incomplete'
+          break
+        default:
+          message = `Connection error: ${error}`
+      }
+      toast.error(message)
+      router.replace('/')
+    }
+  }, [searchParams, router])
+
+  const handleDelete = async (accountId: string) => {
+    try {
+      await deleteGmailAccount.mutateAsync(accountId)
+      setDeleteConfirm(null)
+    } catch (error) {
+      console.error('Failed to delete account:', error)
+    }
   }
 
   const handleAccountClick = (accountId: string) => {
     router.push(`/${accountId}`)
+  }
+
+  const handleConnectGmail = () => {
+    initiateOAuth()
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 p-6">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight">Email Organizer</h1>
+          <p className="text-muted-foreground">Loading your Gmail accounts...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -59,7 +91,7 @@ export default function HomePage() {
               Manage your connected Gmail accounts
             </p>
           </div>
-          <Button className="gap-2">
+          <Button onClick={handleConnectGmail} className="gap-2">
             <Plus className="h-4 w-4" />
             Connect Gmail
           </Button>
@@ -78,7 +110,7 @@ export default function HomePage() {
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{account.name}</span>
+                      <span className="font-medium">{account.name || account.email}</span>
                       {account.isActive ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
                       ) : (
@@ -87,7 +119,7 @@ export default function HomePage() {
                     </div>
                     <p className="text-sm text-muted-foreground">{account.email}</p>
                     <p className="text-xs text-muted-foreground">
-                      Last sync: {account.lastSync} • {account.unreadCount} unread
+                      Last sync: {new Date(account.lastSync || account.updatedAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -100,6 +132,7 @@ export default function HomePage() {
                         size="sm"
                         variant="destructive"
                         onClick={() => handleDelete(account.id)}
+                        disabled={deleteGmailAccount.isPending}
                       >
                         Yes
                       </Button>
@@ -132,7 +165,7 @@ export default function HomePage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Connect your first Gmail account to start organizing emails
             </p>
-            <Button className="mt-4 gap-2">
+            <Button onClick={handleConnectGmail} className="mt-4 gap-2">
               <Plus className="h-4 w-4" />
               Connect Gmail
             </Button>

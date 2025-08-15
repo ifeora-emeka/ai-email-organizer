@@ -1,12 +1,13 @@
 import { Request, Response } from 'express'
-import { auth, signIn, signOut } from '../../../lib/auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '../../../lib/auth'
 import { AuthenticatedRequest } from '../../middleware/auth.middleware'
 import { GoogleAuthData, RefreshTokenData } from './auth.dto'
 
 export class AuthController {
   static async getSession(req: Request, res: Response) {
     try {
-      const session = await auth()
+      const session = await getServerSession(req, res, authOptions)
 
       if (!session?.user) {
         return res.status(401).json({
@@ -23,7 +24,9 @@ export class AuthController {
             email: session.user.email,
             name: session.user.name,
             image: session.user.image
-          }
+          },
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken
         },
         message: 'Session retrieved successfully'
       })
@@ -38,30 +41,10 @@ export class AuthController {
 
   static async googleSignIn(req: Request & { body: GoogleAuthData }, res: Response) {
     try {
-      const { accessToken, refreshToken, idToken, scope } = req.body
-
-      const result = await signIn('google', {
-        accessToken,
-        refreshToken,
-        idToken,
-        scope,
-        redirect: false
-      })
-
-      if (!result) {
-        return res.status(401).json({
-          success: false,
-          error: 'Google authentication failed'
-        })
-      }
-
-      return res.status(200).json({
-        success: true,
-        data: { 
-          sessionToken: result,
-          redirectUrl: '/'
-        },
-        message: 'Google sign-in successful'
+      // OAuth is handled by NextAuth, this endpoint is not needed
+      return res.status(405).json({
+        success: false,
+        error: 'Use /api/auth/signin/google for Google authentication'
       })
     } catch (error) {
       console.error('Error with Google sign-in:', error)
@@ -74,11 +57,10 @@ export class AuthController {
 
   static async signOut(req: AuthenticatedRequest, res: Response) {
     try {
-      await signOut({ redirect: false })
-
-      return res.status(200).json({
-        success: true,
-        message: 'Signed out successfully'
+      // Sign out is handled by NextAuth at /api/auth/signout
+      return res.status(405).json({
+        success: false,
+        error: 'Use /api/auth/signout for signing out'
       })
     } catch (error) {
       console.error('Error signing out:', error)

@@ -13,7 +13,8 @@ type Props = {
 export default function AppLayout({ heading, onBack, children }: Props) {
     return (
         <div className='h-screen w-screen bg-background flex items-center justify-center'>
-            <div className='2xl:w-[80rem] 2xl:h-[50rem] bg-card border shadow-md rounded-lg grid grid-cols-12'>
+
+            <div className='2xl:w-[80rem] 2xl:max-w-[80rem]- 2xl:h-[50rem] 2xl:max-h-[50rem] bg-card border shadow-md rounded-lg grid grid-cols-12 2xl:max-w-[80vw]'>
                 <div className='col-span-4 border-r h-full'>
                     <CategoryList />
                 </div>
@@ -29,6 +30,7 @@ export default function AppLayout({ heading, onBack, children }: Props) {
                     </main>
                 </div>
             </div>
+
         </div>
     )
 }
