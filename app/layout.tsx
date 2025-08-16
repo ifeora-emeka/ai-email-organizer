@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { SessionProvider } from "@/lib/session-provider";
 import { QueryProvider } from "@/lib/query-provider";
 import AuthGuard from "@/components/AuthGuard";
+import AppLayout from "@/components/layout/AppLayout";
 
 export const metadata: Metadata = {
   title: "AI Email Organizer",
@@ -31,7 +32,9 @@ export default function RootLayout({
             >
               <Toaster />
               <AuthGuard>
-                {children}
+                <AppLayout>
+                  {children}
+                </AppLayout>
               </AuthGuard>
             </ThemeProvider>
           </QueryProvider>

@@ -9,11 +9,6 @@ export const queryKeys = {
     detail: (id: string) => ['categories', 'detail', id] as const,
     emails: (id: string, filters?: any) => ['categories', id, 'emails', filters] as const,
   },
-  gmailAccounts: {
-    all: ['gmail-accounts'] as const,
-    list: (filters?: any) => ['gmail-accounts', 'list', filters] as const,
-    detail: (id: string) => ['gmail-accounts', 'detail', id] as const,
-  },
   emails: {
     all: ['emails'] as const,
     list: (filters?: any) => ['emails', 'list', filters] as const,

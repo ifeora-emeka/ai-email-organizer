@@ -1,14 +1,10 @@
 import express from 'express';
-import next from 'next';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import cors from 'cors';
 import { apiRoutes } from './routes';
 
 dotenv.config();
-
-const dev = process.env.NODE_ENV !== 'production';
-const nextApp = next({ dev });
-const handle = nextApp.getRequestHandler();
 
 const limiter = rateLimit({
   windowMs: parseInt('900000'),
@@ -22,11 +18,16 @@ const limiter = rateLimit({
 });
 
 export const createApp = async () => {
-  await nextApp.prepare();
-  
   const server = express();
 
   server.set('trust proxy', 1);
+
+  server.use(cors({
+    origin: ['http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  }));
 
   server.use('/api/v1', limiter);
   
@@ -35,8 +36,17 @@ export const createApp = async () => {
 
   server.use('/api/v1', apiRoutes);
 
-  server.all('*', (req, res) => {
-    return handle(req, res);
+  server.get('/', (req, res) => {
+    res.json({
+      message: 'AI Email Organizer API',
+      version: '1.0.0',
+      endpoints: {
+        health: '/api/v1/health',
+        auth: '/api/v1/auth',
+        categories: '/api/v1/categories',
+        gmailAccounts: '/api/v1/gmail-accounts'
+      }
+    });
   });
 
   return server;

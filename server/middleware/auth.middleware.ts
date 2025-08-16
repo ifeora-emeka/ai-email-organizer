@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../lib/auth'
+import { prisma } from '../../lib/prisma'
 
 export interface AuthenticatedRequest extends Request {
     user?: {
@@ -13,40 +12,59 @@ export interface AuthenticatedRequest extends Request {
 
 export const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-        const session = await getServerSession(req, res, authOptions)
-
-        if (!session?.user) {
+        const userEmail = req.headers['x-user-email'] as string
+        
+        if (!userEmail) {
             return res.status(401).json({
+                success: false,
                 error: 'Authentication required'
             })
         }
 
+        const user = await prisma.user.findUnique({
+            where: { email: userEmail }
+        })
+
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                error: 'User not found'
+            })
+        }
+
         req.user = {
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.name,
-            image: session.user.image
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image
         }
 
         next()
     } catch (error) {
         console.error('Auth middleware error:', error)
         return res.status(500).json({
-            error: 'Internal Server Error'
+            success: false,
+            error: 'Authentication failed'
         })
     }
 }
 
 export const optionalAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-        const session = await getServerSession(req, res, authOptions)
+        const userEmail = req.headers['x-user-email'] as string
+        
+        if (userEmail) {
+            const user = await prisma.user.findUnique({
+                where: { email: userEmail }
+            })
 
-        if (session?.user) {
-            req.user = {
-                id: session.user.id,
-                email: session.user.email,
-                name: session.user.name,
-                image: session.user.image
+            if (user) {
+                req.user = {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    image: user.image
+                }
             }
         }
 

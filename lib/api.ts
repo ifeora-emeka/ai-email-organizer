@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { getSession, signOut } from 'next-auth/react'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -9,11 +9,15 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Important: This ensures cookies are sent with requests
 })
 
 apiClient.interceptors.request.use(
   async (config) => {
-    // NextAuth handles session cookies automatically, no need to manually add auth headers
+    const session = await getSession()
+    if (session?.user) {
+      config.headers['X-User-Email'] = session.user.email
+    }
     return config
   },
   (error) => {

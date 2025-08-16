@@ -1,7 +1,6 @@
 import { Router } from 'express'
 import { authRouter } from './modules/auth/auth.route'
 import { categoriesRouter } from './modules/categories/categories.route'
-import { gmailAccountsRouter } from './modules/gmail-accounts/gmail-accounts.route'
 
 export const apiRoutes = Router()
 
@@ -22,4 +21,3 @@ apiRoutes.get('/ping', (req, res) => {
 
 apiRoutes.use('/auth', authRouter)
 apiRoutes.use('/categories', categoriesRouter)
-apiRoutes.use('/gmail-accounts', gmailAccountsRouter)

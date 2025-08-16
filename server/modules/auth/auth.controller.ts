@@ -1,107 +1,92 @@
 import { Request, Response } from 'express'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../../lib/auth'
-import { AuthenticatedRequest } from '../../middleware/auth.middleware'
-import { GoogleAuthData, RefreshTokenData } from './auth.dto'
+import { getToken } from 'next-auth/jwt'
+import { prisma } from '../../../lib/prisma'
+import { GoogleSignInData } from './auth.dto'
 
 export class AuthController {
   static async getSession(req: Request, res: Response) {
     try {
-      const session = await getServerSession(req, res, authOptions)
+      const token = await getToken({ 
+        req, 
+        secret: process.env.NEXTAUTH_SECRET,
+        cookieName: 'next-auth.session-token'
+      })
 
-      if (!session?.user) {
+      if (!token) {
         return res.status(401).json({
           success: false,
-          error: 'No active session'
+          error: 'No session found'
         })
       }
 
-      return res.status(200).json({
+      const user = await prisma.user.findUnique({
+        where: { id: token.sub }
+      })
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: 'User not found'
+        })
+      }
+
+      res.json({
         success: true,
         data: {
           user: {
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.name,
-            image: session.user.image
-          },
-          accessToken: session.accessToken,
-          refreshToken: session.refreshToken
-        },
-        message: 'Session retrieved successfully'
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image
+          }
+        }
       })
     } catch (error) {
-      console.error('Error getting session:', error)
-      return res.status(500).json({
+      console.error('Session error:', error)
+      res.status(500).json({
         success: false,
         error: 'Failed to get session'
       })
     }
   }
 
-  static async googleSignIn(req: Request & { body: GoogleAuthData }, res: Response) {
+  static async googleSignIn(req: Request & { body: GoogleSignInData }, res: Response) {
     try {
-      // OAuth is handled by NextAuth, this endpoint is not needed
-      return res.status(405).json({
-        success: false,
-        error: 'Use /api/auth/signin/google for Google authentication'
-      })
-    } catch (error) {
-      console.error('Error with Google sign-in:', error)
-      return res.status(500).json({
-        success: false,
-        error: 'Google sign-in failed'
-      })
-    }
-  }
+      const { googleId, email, name, image } = req.body
 
-  static async signOut(req: AuthenticatedRequest, res: Response) {
-    try {
-      // Sign out is handled by NextAuth at /api/auth/signout
-      return res.status(405).json({
-        success: false,
-        error: 'Use /api/auth/signout for signing out'
+      let user = await prisma.user.findUnique({
+        where: { email }
       })
-    } catch (error) {
-      console.error('Error signing out:', error)
-      return res.status(500).json({
-        success: false,
-        error: 'Sign out failed'
-      })
-    }
-  }
 
-  static async refreshToken(req: Request & { body: RefreshTokenData }, res: Response) {
-    try {
-      const { refreshToken } = req.body
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            id: googleId,
+            email,
+            name,
+            image,
+            emailVerified: new Date()
+          }
+        })
+      } else {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            name,
+            image
+          }
+        })
+      }
 
-      return res.status(501).json({
-        success: false,
-        error: 'Token refresh not implemented yet'
-      })
-    } catch (error) {
-      console.error('Error refreshing token:', error)
-      return res.status(500).json({
-        success: false,
-        error: 'Token refresh failed'
-      })
-    }
-  }
-
-  static async getProfile(req: AuthenticatedRequest, res: Response) {
-    try {
-      const user = req.user!
-
-      return res.status(200).json({
+      res.json({
         success: true,
-        data: { user },
-        message: 'Profile retrieved successfully'
+        data: { user }
       })
     } catch (error) {
-      console.error('Error getting profile:', error)
-      return res.status(500).json({
+      console.error('Google sign-in error:', error)
+      res.status(500).json({
         success: false,
-        error: 'Failed to get profile'
+        error: 'Failed to sign in with Google'
       })
     }
   }

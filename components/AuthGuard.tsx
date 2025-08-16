@@ -3,7 +3,6 @@
 import { useSession } from 'next-auth/react'
 import { ReactNode } from 'react'
 import Login from './Login'
-import AppLayout from './layout/AppLayout'
 import { Skeleton } from './ui/skeleton'
 
 interface AuthGuardProps {
@@ -30,8 +29,8 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   }
 
   return (
-    <AppLayout>
+    <>
       {children}
-    </AppLayout>
+    </>
   )
 }

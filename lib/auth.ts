@@ -3,13 +3,8 @@ import GoogleProvider from "next-auth/providers/google"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "./prisma"
 
-console.log('🔧 Auth config loading...')
-console.log('🔧 GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? 'Present' : 'Missing')
-console.log('🔧 GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? 'Present' : 'Missing')
-console.log('🔧 NEXTAUTH_SECRET:', process.env.NEXTAUTH_SECRET ? 'Present' : 'Missing')
-console.log('🔧 NEXTAUTH_URL:', process.env.NEXTAUTH_URL)
-
 export const authOptions: NextAuthOptions = {
+  //@ts-ignore
   adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
@@ -17,9 +12,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: "openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify",
-          access_type: "offline",
-          prompt: "consent"
+          scope: "openid email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify"
         }
       }
     })
@@ -30,91 +23,54 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user, account, profile }) {
-      console.log('🔐 SignIn callback triggered')
-      console.log('🔐 Provider:', account?.provider)
-      console.log('🔐 User email:', user?.email)
-      
       if (account?.provider === "google" && profile) {
-        console.log('✅ Google sign-in successful')
-        return true
-      }
-      console.log('❌ Sign-in failed - invalid provider or missing profile')
-      return false
-    },
-    async session({ session, token, user }) {
-      console.log('🔐 Session callback triggered')
-      
-      if (session?.user) {
-        session.user.id = user?.id || token?.sub || ''
-        
         try {
-          // Get access token from account
-          const account = await prisma.account.findFirst({
-            where: {
-              userId: user?.id || token?.sub,
-              provider: 'google'
-            }
-          })
-          
-          if (account) {
-            session.accessToken = account.access_token || undefined
-            session.refreshToken = account.refresh_token || undefined
-            console.log('✅ Session tokens loaded from database')
-          } else {
-            console.log('⚠️ No account found for user')
+          // Just ensure the user exists in the database
+          if (user.email) {
+            await prisma.user.upsert({
+              where: { email: user.email },
+              update: {
+                name: user.name,
+                image: user.image,
+              },
+              create: {
+                email: user.email,
+                name: user.name,
+                image: user.image,
+              },
+            });
           }
+          return true;
         } catch (error) {
-          console.error('❌ Error loading account tokens:', error)
+          console.error('Error syncing user with database:', error);
+          return false;
         }
+      }
+      return true
+    },
+    async session({ session, token }) {
+      if (session?.user && token) {
+        session.user.id = token.sub || ''
+        session.accessToken = token.accessToken as string
       }
       return session
     },
     async jwt({ token, account, user }) {
-      console.log('🔐 JWT callback triggered')
-      
-      if (account?.provider === "google") {
-        console.log('✅ JWT updated with Google tokens')
-        token.accessToken = account.access_token
-        token.refreshToken = account.refresh_token
-      }
-      
       if (user) {
         token.sub = user.id
       }
-      
+      if (account) {
+        token.accessToken = account.access_token
+        token.refreshToken = account.refresh_token
+      }
       return token
     }
   },
   session: {
-    strategy: "database",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, 
   },
-  cookies: {
-    sessionToken: {
-      name: `next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? undefined : undefined
-      }
-    }
-  },
-  debug: process.env.NODE_ENV === 'development',
-  logger: {
-    error(code, metadata) {
-      console.error('❌ NextAuth Error:', code, metadata)
-    },
-    warn(code) {
-      console.warn('⚠️ NextAuth Warning:', code)
-    },
-    debug(code, metadata) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🐛 NextAuth Debug:', code, metadata)
-      }
-    }
-  }
+  debug: process.env.NODE_ENV === 'development'
 }
 
 export default NextAuth(authOptions)
