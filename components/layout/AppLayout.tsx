@@ -127,7 +127,7 @@ export default function AppLayout({ heading, onBack, children, isLoading = false
                                 {heading || "Email Organizer"}
                             </h1>
                         </header>
-                        <main className='overflow-auto bg-card/70 h-[calc(100dvh-6rem)]'>
+                        <main className='overflow-auto bg-card/70 h-[calc(100dvh-5.5rem)]'>
                             {children}
                         </main>
                     </div>
