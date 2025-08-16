@@ -132,7 +132,6 @@ export class GmailPollingService
             const message = messageResponse.data;
             const headers = message.payload?.headers || [];
 
-            // Extract email metadata
             const subject = headers.find((h: any) => h.name === 'Subject')?.value;
             const from = headers.find((h: any) => h.name === 'From')?.value;
             const to = headers.find((h: any) => h.name === 'To')?.value;
@@ -140,20 +139,16 @@ export class GmailPollingService
             const bcc = headers.find((h: any) => h.name === 'Bcc')?.value;
             const date = headers.find((h: any) => h.name === 'Date')?.value;
 
-            // Parse from field
             const fromMatch = from?.match(/(.*?)\s*<(.+?)>/) || [ null, null, from ];
             const fromName = fromMatch[ 1 ]?.trim() || null;
             const fromEmail = fromMatch[ 2 ] || fromMatch[ 0 ];
 
-            // Extract email body
             const { body, htmlBody, hasAttachments } = this.extractEmailBody(message.payload);
 
-            // Get user's categories for AI processing
             const categories = await prisma.category.findMany({
                 where: { userId: gmailAccount.userId }
             });
 
-            // Use AI to categorize and summarize
             const emailContent: EmailContent = {
                 subject,
                 fromEmail,
@@ -162,15 +157,12 @@ export class GmailPollingService
                 htmlBody
             };
 
-            console.log('EMAIL CONTENT:::', emailContent);
-
             const aiResult = await AIService.categorizeAndSummarizeEmail(emailContent, categories);
 
             if (!aiResult) {
                 throw new Error('AI processing failed');
             }
 
-            // Create email record
             const email = await prisma.email.create({
                 data: {
                     gmailAccountId,
@@ -194,9 +186,7 @@ export class GmailPollingService
                 }
             });
 
-            // Archive the email in Gmail
             try {
-                // First, try to get available labels to see what we can use
                 const labelsResponse = await gmail.users.labels.list({
                     userId: 'me'
                 });
@@ -205,11 +195,10 @@ export class GmailPollingService
                 const archiveLabel = labels.find((label: any) =>
                     label.id === 'ARCHIVE' ||
                     label.name?.toLowerCase() === 'archive' ||
-                    label.id === 'CATEGORY_PERSONAL' // Alternative system label
+                    label.id === 'CATEGORY_PERSONAL' 
                 );
 
                 if (archiveLabel) {
-                    // Use the found archive label
                     await gmail.users.messages.modify({
                         userId: 'me',
                         id: messageId,
@@ -220,7 +209,6 @@ export class GmailPollingService
                     });
                     console.log(`✅ Archived email ${messageId} using label: ${archiveLabel.name || archiveLabel.id}`);
                 } else {
-                    // Just remove from inbox if no archive label found
                     await gmail.users.messages.modify({
                         userId: 'me',
                         id: messageId,
@@ -233,7 +221,6 @@ export class GmailPollingService
             } catch (archiveError) {
                 console.error(`❌ Failed to archive email ${messageId}:`, archiveError);
 
-                // Try alternative archiving method - just remove from inbox
                 try {
                     await gmail.users.messages.modify({
                         userId: 'me',
@@ -253,7 +240,6 @@ export class GmailPollingService
         } catch (error) {
             console.error(`Error processing email ${messageId}:`, error);
 
-            // Add to processing queue for retry
             await prisma.emailProcessingQueue.upsert({
                 where: {
                     gmailAccountId_messageId: {
@@ -330,7 +316,6 @@ export class GmailPollingService
         }
     }
 
-    // Manual polling for testing
     static async manualPoll(gmailAccountId: string): Promise<{ processed: number; failed: number; }>
     {
         try {
@@ -342,7 +327,6 @@ export class GmailPollingService
         }
     }
 
-    // Test archiving functionality
     static async testArchiving(gmailAccountId: string): Promise<boolean>
     {
         try {
@@ -354,7 +338,6 @@ export class GmailPollingService
                 throw new Error('Gmail account not found');
             }
 
-            // Create OAuth2 client
             const oauth2Client = new google.auth.OAuth2(
                 process.env.GOOGLE_CLIENT_ID,
                 process.env.GOOGLE_CLIENT_SECRET,
@@ -368,7 +351,6 @@ export class GmailPollingService
 
             const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-            // Get a recent email to test archiving
             const messagesResponse = await gmail.users.messages.list({
                 userId: 'me',
                 labelIds: [ 'INBOX' ],
@@ -388,7 +370,6 @@ export class GmailPollingService
 
             console.log(`Testing archiving with message ID: ${testMessageId}`);
 
-            // Test archiving with proper label detection
             const labelsResponse = await gmail.users.labels.list({
                 userId: 'me'
             });
@@ -411,7 +392,6 @@ export class GmailPollingService
                 });
                 console.log(`✅ Test archived using label: ${archiveLabel.name || archiveLabel.id}`);
             } else {
-                // Just remove from inbox for testing
                 await gmail.users.messages.modify({
                     userId: 'me',
                     id: testMessageId,

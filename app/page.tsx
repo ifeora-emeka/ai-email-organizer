@@ -216,7 +216,6 @@ export default function HomePage() {
     return colors[category as keyof typeof colors] || 'bg-muted text-muted-foreground border-border'
   }
 
-  // Email detail view
   if (selectedEmail) {
     return (
       <AuthGuard>
@@ -304,7 +303,6 @@ export default function HomePage() {
     )
   }
 
-  // Email list view
   return (
     <AuthGuard>
       <div className="h-full flex flex-col">

@@ -23,10 +23,9 @@ export const createApp = async () =>
 
   server.set('trust proxy', 1);
 
-  // More permissive CORS for development
   if (process.env.NODE_ENV === 'development') {
     server.use(cors({
-      origin: true, // Allow all origins in development
+      origin: true, 
       credentials: true,
       methods: [ 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ],
       allowedHeaders: [ 'Content-Type', 'Authorization', 'Cookie', 'X-User-Email', 'Origin', 'Accept' ],

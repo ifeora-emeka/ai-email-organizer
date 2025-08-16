@@ -22,10 +22,8 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
   callbacks: {
-    // Remove the custom signIn callback - let PrismaAdapter handle user creation
     async session({ session, token })
     {
-      // For JWT sessions
       if (session?.user && token) {
         session.user.id = token.sub || '';
         session.accessToken = token.accessToken as string;
@@ -34,7 +32,6 @@ export const authOptions: NextAuthOptions = {
     },
     async jwt({ token, account, user })
     {
-      // This callback is less relevant when using database sessions with PrismaAdapter
       if (user) {
         token.sub = user.id;
       }
@@ -45,7 +42,6 @@ export const authOptions: NextAuthOptions = {
       return token;
     }
   },
-  // If you prefer JWT sessions, use this instead:
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,

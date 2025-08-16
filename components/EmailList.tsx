@@ -61,7 +61,7 @@ export function EmailList({ categoryId, categoryName, className }: EmailListProp
   const handleMarkAsRead = async (emailId: string, isRead: boolean) => {
     try {
       await markAsReadMutation.mutateAsync({ id: emailId, isRead })
-      // Invalidate and refetch emails
+      
       queryClient.invalidateQueries({ queryKey: [...queryKeys.emails.all] })
       toast.success(isRead ? 'Email marked as read' : 'Email marked as unread')
     } catch (error) {
@@ -73,7 +73,7 @@ export function EmailList({ categoryId, categoryName, className }: EmailListProp
   const handleArchive = async (emailId: string, isArchived: boolean) => {
     try {
       await archiveMutation.mutateAsync({ id: emailId, isArchived })
-      // Invalidate and refetch emails
+      
       queryClient.invalidateQueries({ queryKey: [...queryKeys.emails.all] })
       toast.success(isArchived ? 'Email archived' : 'Email unarchived')
     } catch (error) {
@@ -136,7 +136,6 @@ export function EmailList({ categoryId, categoryName, className }: EmailListProp
             </div>
           </div>
 
-          {/* Filters and Search */}
           <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4 md:items-center">
             <div className="flex-1">
               <div className="relative">
@@ -146,7 +145,7 @@ export function EmailList({ categoryId, categoryName, className }: EmailListProp
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value)
-                    setCurrentPage(1) // Reset to first page when searching
+                    setCurrentPage(1) 
                   }}
                   className="pl-10"
                 />

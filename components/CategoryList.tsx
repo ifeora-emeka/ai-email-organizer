@@ -135,7 +135,6 @@ export default function CategoryList() {
   }
 
   const getCategoryEmailCount = (categoryName: string) => {
-    // Return the email count from the category data (from API)
     const category = state.categories.find(cat => cat.name === categoryName)
     return category?.emailCount || 0
   }

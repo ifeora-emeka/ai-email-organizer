@@ -18,6 +18,7 @@ export function useGmailAccounts()
 {
     return useQuery<GmailAccount[]>({
         queryKey: queryKeys.gmail.accounts,
+        //@ts-ignore
         queryFn: async () =>
         {
             const response = await api.get<{ data: GmailAccount[]; }>('/gmail-accounts');
@@ -40,7 +41,6 @@ export function useStartPolling()
         onSuccess: (data, gmailAccountId) =>
         {
             toast.success(`Started polling for Gmail account`);
-            // Invalidate and refetch Gmail accounts to update lastSync
             queryClient.invalidateQueries({ queryKey: queryKeys.gmail.accounts });
         },
         onError: (error: any) =>
@@ -85,7 +85,6 @@ export function useManualPoll()
         onSuccess: (data, gmailAccountId) =>
         {
             toast.success(`Manual poll completed: ${data.data.processed} emails processed`);
-            // Invalidate emails and Gmail accounts to refresh data
             queryClient.invalidateQueries({ queryKey: queryKeys.emails.all });
             queryClient.invalidateQueries({ queryKey: queryKeys.gmail.accounts });
         },
