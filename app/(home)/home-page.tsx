@@ -4,28 +4,45 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Clock,
     Paperclip,
     ArrowLeft,
-    Star,
-    Archive,
     Trash2,
+    UserX,
+    SparkleIcon,
 } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
-import { useEmails, type Email } from "@/lib/hooks/use-emails";
+import { useEmails, type Email, useBulkUpdateEmails, useDeleteEmail, useBulkDeleteEmails } from "@/lib/hooks/use-emails";
 import {
     useGmailAccounts,
     useStartPolling,
     type GmailAccount,
 } from "@/lib/hooks";
 import EmailListSkeleton from "@/components/EmailListSkeleton";
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-keys';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function HomePage() {
     const { data: session } = useSession();
-    const { activeCategory, activeCategoryId, categories } = useAppContext();
+    const { activeCategory, activeCategoryId } = useAppContext();
     const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
+    const [selectedEmailIds, setSelectedEmailIds] = useState<string[]>([]);
     const [pollingStarted, setPollingStarted] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    const queryClient = useQueryClient();
 
     const { data: emailsResponse, isLoading: emailsLoading } = useEmails({
         categoryId: activeCategoryId || undefined,
@@ -34,18 +51,19 @@ export default function HomePage() {
         sortOrder: "desc",
     });
 
-    console.log("emailsResponse:::", emailsResponse);
-
     const { data: gmailAccountsData } = useGmailAccounts();
     const startPolling = useStartPolling();
+    const bulkUpdateEmails = useBulkUpdateEmails();
+    const deleteEmail = useDeleteEmail();
+    const bulkDeleteEmails = useBulkDeleteEmails();
 
-    const emails = emailsResponse || [];
+    const emails = Array.isArray(emailsResponse) 
+        ? emailsResponse 
+        : emailsResponse?.data || [];
+    
     const gmailAccounts: GmailAccount[] =
         (gmailAccountsData as GmailAccount[]) || [];
 
-    console.log("GMAIL ACCOUNTS:::", gmailAccounts);
-
-    // Auto-start polling for all connected Gmail accounts
     useEffect(() => {
         if (gmailAccounts.length > 0 && !pollingStarted && session?.user) {
             console.log(
@@ -53,7 +71,6 @@ export default function HomePage() {
                 gmailAccounts.length
             );
 
-            // Start polling for each connected account
             gmailAccounts.forEach((account: GmailAccount) => {
                 if (account.isActive) {
                     startPolling.mutate(account.id);
@@ -74,6 +91,54 @@ export default function HomePage() {
 
     const handleBackToList = () => {
         setSelectedEmail(null);
+    };
+
+    const handleEmailSelect = (emailId: string, isSelected: boolean) => {
+        if (isSelected) {
+            setSelectedEmailIds(prev => [...prev, emailId]);
+        } else {
+            setSelectedEmailIds(prev => prev.filter(id => id !== emailId));
+        }
+    };
+
+    const handleSelectAll = () => {
+        if (selectedEmailIds.length === emails.length) {
+            setSelectedEmailIds([]);
+        } else {
+            setSelectedEmailIds(emails.map(email => email.id));
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmBulkDelete = async () => {
+        try {
+            await bulkDeleteEmails.mutateAsync({ emailIds: selectedEmailIds });
+            
+            queryClient.invalidateQueries({ queryKey: queryKeys.emails.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.emails.list() });
+            if (activeCategoryId) {
+                queryClient.invalidateQueries({ 
+                    queryKey: queryKeys.emails.byCategory(activeCategoryId) 
+                });
+            }
+            
+            queryClient.invalidateQueries({ queryKey: queryKeys.auth.dependencies });
+            
+            setSelectedEmailIds([]);
+            setShowDeleteConfirm(false);
+        } catch (error) {
+            console.error('Failed to delete emails:', error);
+            setShowDeleteConfirm(false);
+        }
+    };
+
+    const handleBulkUnsubscribe = async () => {
+        // TODO: Implement unsubscribe functionality
+        console.log('Unsubscribe from emails:', selectedEmailIds);
+        setSelectedEmailIds([]);
     };
 
     const formatTimeAgo = (dateString: string) => {
@@ -101,134 +166,108 @@ export default function HomePage() {
         }
     };
 
-    const getCategoryColor = (category: string) => {
-        const categoryData = categories.find((c) => c.name === category);
-        if (categoryData?.color) {
-            const colorClass = categoryData.color.startsWith("bg-")
-                ? categoryData.color
-                : `bg-${categoryData.color}`;
-            return `${colorClass}/10 text-${categoryData.color.replace(
-                "bg-",
-                ""
-            )}-700 border-${categoryData.color.replace("bg-", "")}-500/20`;
-        }
-        return "bg-muted text-muted-foreground border-border";
-    };
-
     if (selectedEmail) {
         return (
-            <>
-                <div className='h-full flex flex-col'>
-                    <div className='flex-shrink-0 p-4 border-b border-border/50'>
-                        <Button
-                            variant='ghost'
-                            size='sm'
-                            onClick={handleBackToList}
-                            className='flex items-center gap-2 text-muted-foreground hover:text-foreground'
-                        >
-                            <ArrowLeft className='h-4 w-4' />
-                            Back to emails
-                        </Button>
+            <div className='flex flex-col min-h-full'>
+                <div className='flex-shrink-0 p-4 border-b border-border/50'>
+                    <Button
+                        variant='ghost'
+                        size='sm'
+                        onClick={handleBackToList}
+                        className='flex items-center gap-2 text-muted-foreground hover:text-foreground'
+                    >
+                        <ArrowLeft className='h-4 w-4' />
+                        Back to emails
+                    </Button>
+                </div>
+
+                <div className='flex-1 p-6'>
+                    <div className='mb-6'>
+                        <div className='flex items-start justify-between mb-4'>
+                            <div className='flex-1'>
+                                <h1 className='text-xl font-semibold text-foreground mb-3'>
+                                    {selectedEmail.subject}
+                                </h1>
+                                <div className='flex items-center gap-3 mb-3'>
+                                    <span className='text-sm font-medium text-foreground'>
+                                        {selectedEmail.fromName}
+                                    </span>
+                                    <span className='text-sm text-muted-foreground'>
+                                        &lt;{selectedEmail.fromEmail}
+                                        &gt;
+                                    </span>
+                                </div>
+                                <div className='flex items-center gap-2 text-sm text-muted-foreground mb-4'>
+                                    <Clock className='h-4 w-4' />
+                                    <span>
+                                        {formatTimeAgo(
+                                            selectedEmail.receivedAt
+                                        )}
+                                    </span>
+                                    {selectedEmail.hasAttachments && (
+                                        <>
+                                            <span>•</span>
+                                            <Paperclip className='h-4 w-4' />
+                                            <span>Has attachments</span>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                            <div className='flex items-center gap-2'>
+                                <Button variant='ghost' size='sm'>
+                                    <Trash2 className='h-4 w-4' />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className='flex items-center gap-2 mb-6'>
+                            <Badge
+                                className={`text-xs px-2 py-1 bg-muted text-muted-foreground border-border`}
+                            >
+                                {selectedEmail.category}
+                            </Badge>
+                            <Badge
+                                className={`text-xs px-2 py-1 ${getPriorityColor(
+                                    selectedEmail.priority
+                                )}`}
+                            >
+                                {selectedEmail.priority} priority
+                            </Badge>
+                            <Badge
+                                variant='secondary'
+                                className='text-xs'
+                            >
+                                AI Confidence:{" "}
+                                {Math.round(
+                                    selectedEmail.aiConfidence * 100
+                                )}
+                                %
+                            </Badge>
+                        </div>
+
+                        <div className='bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6'>
+                            <h3 className='text-sm font-medium text-primary mb-2 flex items-center'>
+                                <SparkleIcon className="h-4 w-4 mr-2" /> AI Summary
+                            </h3>
+                            <p className='text-sm text-primary/80'>
+                                {selectedEmail.aiSummary}
+                            </p>
+                        </div>
                     </div>
 
-                    <div className='flex-1 overflow-y-auto'>
-                        <div className='p-6'>
-                            <div className='mb-6'>
-                                <div className='flex items-start justify-between mb-4'>
-                                    <div className='flex-1'>
-                                        <h1 className='text-xl font-semibold text-foreground mb-3'>
-                                            {selectedEmail.subject}
-                                        </h1>
-                                        <div className='flex items-center gap-3 mb-3'>
-                                            <span className='text-sm font-medium text-foreground'>
-                                                {selectedEmail.fromName}
-                                            </span>
-                                            <span className='text-sm text-muted-foreground'>
-                                                &lt;{selectedEmail.fromEmail}
-                                                &gt;
-                                            </span>
-                                        </div>
-                                        <div className='flex items-center gap-2 text-sm text-muted-foreground mb-4'>
-                                            <Clock className='h-4 w-4' />
-                                            <span>
-                                                {formatTimeAgo(
-                                                    selectedEmail.receivedAt
-                                                )}
-                                            </span>
-                                            {selectedEmail.hasAttachments && (
-                                                <>
-                                                    <span>•</span>
-                                                    <Paperclip className='h-4 w-4' />
-                                                    <span>Has attachments</span>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className='flex items-center gap-2'>
-                                        <Button variant='ghost' size='sm'>
-                                            <Star className='h-4 w-4' />
-                                        </Button>
-                                        <Button variant='ghost' size='sm'>
-                                            <Archive className='h-4 w-4' />
-                                        </Button>
-                                        <Button variant='ghost' size='sm'>
-                                            <Trash2 className='h-4 w-4' />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <div className='flex items-center gap-2 mb-6'>
-                                    <Badge
-                                        className={`text-xs px-2 py-1 ${getCategoryColor(
-                                            selectedEmail.category
-                                        )}`}
-                                    >
-                                        {selectedEmail.category}
-                                    </Badge>
-                                    <Badge
-                                        className={`text-xs px-2 py-1 ${getPriorityColor(
-                                            selectedEmail.priority
-                                        )}`}
-                                    >
-                                        {selectedEmail.priority} priority
-                                    </Badge>
-                                    <Badge
-                                        variant='secondary'
-                                        className='text-xs'
-                                    >
-                                        AI Confidence:{" "}
-                                        {Math.round(
-                                            selectedEmail.aiConfidence * 100
-                                        )}
-                                        %
-                                    </Badge>
-                                </div>
-
-                                <div className='bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6'>
-                                    <h3 className='text-sm font-medium text-primary mb-2'>
-                                        AI Summary
-                                    </h3>
-                                    <p className='text-sm text-primary/80'>
-                                        {selectedEmail.aiSummary}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className='prose prose-sm max-w-none'>
-                                <div className='whitespace-pre-wrap text-foreground leading-relaxed'>
-                                    {selectedEmail.body}
-                                </div>
-                            </div>
+                    <div className='prose prose-sm max-w-none'>
+                        <div className='whitespace-pre-wrap text-foreground leading-relaxed'>
+                            {selectedEmail.body}
                         </div>
                     </div>
                 </div>
-            </>
+            </div>
         );
     }
 
     return (
         <>
-            <div className='h-full flex flex-col'>
+            <div className='flex flex-col min-h-full'>
                 <div className='flex-shrink-0 p-6 border-b border-border/50'>
                     <div className='mb-4'>
                         <div className='flex items-center gap-3 mb-1'>
@@ -237,15 +276,6 @@ export default function HomePage() {
                                     ? `${activeCategory}`
                                     : "AI Email Organizer"}
                             </h1>
-                            {pollingStarted && gmailAccounts.length > 0 && (
-                                <Badge
-                                    variant='secondary'
-                                    className='text-xs bg-green-500/10 text-green-700 border-green-500/20'
-                                >
-                                    <div className='w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse'></div>
-                                    Polling Active
-                                </Badge>
-                            )}
                         </div>
                         <p className='text-sm text-muted-foreground'>
                             {activeCategory
@@ -258,9 +288,9 @@ export default function HomePage() {
                     </div>
                 </div>
 
-                <div className='flex-1 overflow-y-auto'>
+                <div className='flex-1'>
                     {!activeCategory ? (
-                        <div className='flex flex-col items-center justify-center h-full p-8 text-center'>
+                        <div className='flex flex-col items-center justify-center min-h-96 p-8 text-center'>
                             <div className='w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4'>
                                 <svg
                                     className='w-8 h-8 text-primary'
@@ -297,7 +327,7 @@ export default function HomePage() {
                             <EmailListSkeleton />
                         </div>
                     ) : emails.length === 0 ? (
-                        <div className='flex flex-col items-center justify-center h-full p-8 text-center'>
+                        <div className='flex flex-col items-center justify-center min-h-96 p-8 text-center'>
                             <div className='w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4'>
                                 <svg
                                     className='w-8 h-8 text-muted-foreground'
@@ -322,99 +352,167 @@ export default function HomePage() {
                             </p>
                         </div>
                     ) : (
-                        <div className='divide-y  h-full overflow-y-auto divide-border/50'>
-                            {emails?.map((email) => (
-                                <div
-                                    key={email.id}
-                                    className={`p-4 hover:bg-accent/50 cursor-pointer transition-colors ${
-                                        !email.isRead
-                                            ? "bg-primary/5 border-l-2 border-l-primary"
-                                            : ""
-                                    }`}
-                                    onClick={() => handleEmailClick(email)}
-                                >
-                                    <div className='flex items-start justify-between gap-4'>
-                                        <div className='flex-1 min-w-0'>
-                                            <div className='flex items-center gap-2 mb-2'>
-                                                <span
-                                                    className={`font-medium text-foreground text-sm ${
+                        <div className='relative'>
+                            {/* Floating Action Bar */}
+                            {selectedEmailIds.length > 0 && (
+                                <div className='sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 p-4'>
+                                    <div className='flex items-center justify-between'>
+                                        <div className='flex items-center gap-4'>
+                                            <span className='text-sm font-medium'>
+                                                {selectedEmailIds.length} email{selectedEmailIds.length > 1 ? 's' : ''} selected
+                                            </span>
+                                            <Button
+                                                variant='outline'
+                                                size='sm'
+                                                onClick={handleSelectAll}
+                                            >
+                                                {selectedEmailIds.length === emails.length ? 'Deselect All' : 'Select All'}
+                                            </Button>
+                                        </div>
+                                        <div className='flex items-center gap-2'>
+                                            <Button
+                                                variant='outline'
+                                                size='sm'
+                                                onClick={handleBulkUnsubscribe}
+                                                className='flex items-center gap-2'
+                                            >
+                                                <UserX className='h-4 w-4' />
+                                                Unsubscribe
+                                            </Button>
+                                            <Button
+                                                variant='destructive'
+                                                size='sm'
+                                                onClick={handleBulkDelete}
+                                                className='flex items-center gap-2'
+                                            >
+                                                <Trash2 className='h-4 w-4' />
+                                                Delete
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className='divide-y divide-border/50'>
+                                {emails?.map((email) => (
+                                    <div
+                                        key={email.id}
+                                        className={`p-4 hover:bg-accent/50 transition-colors ${
+                                            !email.isRead
+                                                ? "bg-primary/5 border-l-2 border-l-primary"
+                                                : ""
+                                        } ${
+                                            selectedEmailIds.includes(email.id)
+                                                ? "bg-primary/10"
+                                                : ""
+                                        }`}
+                                    >
+                                        <div className='flex items-start gap-4'>
+                                            <div className='flex items-center pt-1'>
+                                                <Checkbox
+                                                    checked={selectedEmailIds.includes(email.id)}
+                                                    onCheckedChange={(checked) => 
+                                                        handleEmailSelect(email.id, checked as boolean)
+                                                    }
+                                                    className='h-4 w-4'
+                                                />
+                                            </div>
+                                            
+                                            <div 
+                                                className='flex-1 min-w-0 cursor-pointer'
+                                                onClick={() => handleEmailClick(email)}
+                                            >
+                                                <div className='flex items-center gap-2 mb-2'>
+                                                    <span
+                                                        className={`font-medium text-foreground text-sm ${
+                                                            !email.isRead
+                                                                ? "font-semibold"
+                                                                : ""
+                                                        }`}
+                                                    >
+                                                        {email.fromName}
+                                                    </span>
+                                                </div>
+
+                                                <h3
+                                                    className={`text-sm text-foreground mb-2 ${
                                                         !email.isRead
                                                             ? "font-semibold"
                                                             : ""
                                                     }`}
                                                 >
-                                                    {email.fromName}
-                                                </span>
-                                                <Badge
-                                                    className={`text-xs px-2 py-1 ${getCategoryColor(
-                                                        email.category
-                                                    )}`}
-                                                >
-                                                    {email.category}
-                                                </Badge>
-                                                <Badge
-                                                    className={`text-xs px-2 py-1 ${getPriorityColor(
-                                                        email.priority
-                                                    )}`}
-                                                >
-                                                    {email.priority}
-                                                </Badge>
-                                            </div>
+                                                    {email.subject}
+                                                </h3>
 
-                                            <h3
-                                                className={`text-sm text-foreground mb-2 ${
-                                                    !email.isRead
-                                                        ? "font-semibold"
-                                                        : ""
-                                                }`}
-                                            >
-                                                {email.subject}
-                                            </h3>
+                                                <p className='text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-3'>
+                                                    {email.aiSummary}
+                                                </p>
 
-                                            <p className='text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-3'>
-                                                {email.aiSummary}
-                                            </p>
-
-                                            <div className='flex items-center gap-4 text-xs text-muted-foreground'>
-                                                <div className='flex items-center gap-1'>
-                                                    <Clock className='h-3 w-3' />
-                                                    <span>
-                                                        {formatTimeAgo(
-                                                            email.receivedAt
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                {email.hasAttachments && (
+                                                <div className='flex items-center gap-4 text-xs text-muted-foreground'>
                                                     <div className='flex items-center gap-1'>
-                                                        <Paperclip className='h-3 w-3' />
-                                                        <span>Attachment</span>
+                                                        <Clock className='h-3 w-3' />
+                                                        <span>
+                                                            {formatTimeAgo(
+                                                                email.receivedAt
+                                                            )}
+                                                        </span>
                                                     </div>
-                                                )}
-                                                <div className='flex items-center gap-1'>
-                                                    <span>
-                                                        AI:{" "}
-                                                        {Math.round(
-                                                            email.aiConfidence *
-                                                                100
-                                                        )}
-                                                        %
-                                                    </span>
+                                                    {email.hasAttachments && (
+                                                        <div className='flex items-center gap-1'>
+                                                            <Paperclip className='h-3 w-3' />
+                                                            <span>Attachment</span>
+                                                        </div>
+                                                    )}
+                                                    <div className='flex items-center gap-1'>
+                                                        <span>
+                                                            AI:{" "}
+                                                            {Math.round(
+                                                                email.aiConfidence *
+                                                                    100
+                                                            )}
+                                                            %
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <div className='flex items-center gap-2'>
-                                            {!email.isRead && (
-                                                <div className='w-2 h-2 bg-primary rounded-full'></div>
-                                            )}
+                                            <div className='flex items-center gap-2'>
+                                                {!email.isRead && (
+                                                    <div className='w-2 h-2 bg-primary rounded-full'></div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
             </div>
+            
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Selected Emails</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete {selectedEmailIds.length} email{selectedEmailIds.length > 1 ? 's' : ''}? 
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={bulkDeleteEmails.isPending}>
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={confirmBulkDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={bulkDeleteEmails.isPending}
+                        >
+                            {bulkDeleteEmails.isPending ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

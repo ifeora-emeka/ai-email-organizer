@@ -26,7 +26,12 @@ export const BulkUpdateEmailDto = z.object({
   updates: UpdateEmailDto
 })
 
+export const BulkDeleteEmailDto = z.object({
+  emailIds: z.array(z.string().cuid('Invalid email ID format')).min(1, 'At least one email ID is required')
+})
+
 export type EmailParams = z.infer<typeof EmailParamsDto>
 export type EmailQuery = z.infer<typeof EmailQueryDto>
 export type UpdateEmailData = z.infer<typeof UpdateEmailDto>
 export type BulkUpdateEmailData = z.infer<typeof BulkUpdateEmailDto>
+export type BulkDeleteEmailData = z.infer<typeof BulkDeleteEmailDto>

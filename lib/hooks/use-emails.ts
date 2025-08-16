@@ -1,6 +1,8 @@
 import { useApiQuery, useApiMutation } from './use-api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/query-keys';
+import { useMutationWithToast } from '@/lib/hooks/use-mutation-with-toast';
 import { ApiError } from '@/lib/types';
 
 export interface Email {
@@ -62,6 +64,10 @@ export interface UpdateEmailData {
 export interface BulkUpdateEmailData {
   emailIds: string[];
   updates: UpdateEmailData;
+}
+
+export interface BulkDeleteEmailData {
+  emailIds: string[];
 }
 
 export function useEmails(query: EmailQuery = {}) {
@@ -143,6 +149,15 @@ export function useCategorizeEmail() {
   return useApiMutation<Email, ApiError, { id: string; categoryId: string | null }>({
     mutationFn: async ({ id, categoryId }) => {
       return updateEmail.mutateAsync({ id, data: { categoryId } });
+    }
+  });
+}
+
+export function useBulkDeleteEmails() {
+  return useApiMutation<{ deletedCount: number; emailIds: string[] }, ApiError, BulkDeleteEmailData>({
+    mutationFn: async (data) => {
+      const response = await api.deleteWithData('/emails/bulk', data);
+      return response.data.data;
     }
   });
 }

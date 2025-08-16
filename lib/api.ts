@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { getSession, signOut } from 'next-auth/react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -9,7 +9,7 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Important: This ensures cookies are sent with requests
+  withCredentials: true,
 });
 
 apiClient.interceptors.request.use(
@@ -92,6 +92,9 @@ export const api = {
 
   delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<ApiResponse<T>>> =>
     apiClient.delete(url, config),
+
+  deleteWithData: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<ApiResponse<T>>> =>
+    apiClient.delete(url, { ...config, data }),
 };
 
 export default api;

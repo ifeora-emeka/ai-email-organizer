@@ -14,10 +14,10 @@ type Props = {
 }
 
 const AppLayoutSkeleton = () => (
-    <div className='min-h-screen w-full bg-background flex items-center justify-center p-4'>
+    <div className='min-h-screen w-full bg-background flex items-center justify-center'>
         <div className='w-full max-w-7xl h-[calc(100vh-2rem)] bg-background border border-border/50 shadow-lg rounded-xl overflow-hidden'>
             <div className='h-full grid grid-cols-12'>
-                <div className='col-span-3 border-r border-border bg-card flex flex-col'>
+                <div className='col-span-3 border-r border-border flex flex-col'>
                     <div className="p-4 border-b border-border/50">
                         <div className="flex items-center justify-between mb-4">
                             <Skeleton className="h-6 w-24" />
@@ -39,11 +39,11 @@ const AppLayoutSkeleton = () => (
                     </div>
                 </div>
                 
-                <div className='col-span-6 flex flex-col'>
-                    <header className='border-b border-border h-14 flex gap-3 items-center px-4 bg-card backdrop-blur-sm'>
+                <div className='col-span-6 flex flex-col h-full'>
+                    <header className='border-b border-border h-14 flex gap-3 items-center px-4 bg-card backdrop-blur-sm flex-shrink-0'>
                         <Skeleton className="h-6 w-40" />
                     </header>
-                    <main className='flex-1 overflow-y-auto bg-card/70 p-6'>
+                    <main className='flex-1 overflow-y-auto bg-card/70 p-6 min-h-0'>
                         <div className="space-y-4">
                             <div className="mb-4">
                                 <Skeleton className="h-8 w-32 mb-2" />
@@ -116,8 +116,8 @@ export default function AppLayout({ heading, onBack, children, isLoading = false
                         <CategoryList />
                     </div>
                     
-                    <div className='col-span-6 flex flex-col'>
-                        <header className='border-b border-border h-14 flex gap-3 items-center px-4 bg-card backdrop-blur-sm'>
+                    <div className='col-span-6 flex flex-col h-full'>
+                        <header className='border-b border-border h-14 flex gap-3 items-center px-4 bg-card backdrop-blur-sm flex-shrink-0'>
                             {onBack && (
                                 <Button size='sm' variant='ghost' onClick={onBack} className='h-8 w-8 p-0'>
                                     <ArrowLeft className='h-4 w-4' />
@@ -127,7 +127,7 @@ export default function AppLayout({ heading, onBack, children, isLoading = false
                                 {heading || "Email Organizer"}
                             </h1>
                         </header>
-                        <main className='flex-1 overflow-y-auto bg-card/70'>
+                        <main className='overflow-auto bg-card/70 h-[calc(100dvh-6rem)]'>
                             {children}
                         </main>
                     </div>

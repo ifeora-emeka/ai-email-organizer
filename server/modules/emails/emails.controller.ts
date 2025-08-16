@@ -1,7 +1,7 @@
 import { Response } from 'express'
 import { prisma } from '../../../lib/prisma'
 import { AuthenticatedRequest } from '../../middleware/auth.middleware'
-import { EmailQuery, EmailParams, UpdateEmailData, BulkUpdateEmailData } from './emails.dto'
+import { EmailQuery, EmailParams, UpdateEmailData, BulkUpdateEmailData, BulkDeleteEmailData } from './emails.dto'
 
 export class EmailsController {
   static async getEmails(req: AuthenticatedRequest & { query: EmailQuery }, res: Response) {
@@ -353,6 +353,55 @@ export class EmailsController {
       res.status(500).json({
         success: false,
         error: 'Failed to delete email'
+      })
+    }
+  }
+
+  static async bulkDeleteEmails(req: AuthenticatedRequest & { body: BulkDeleteEmailData }, res: Response) {
+    try {
+      const userId = req.user!.id
+      const { emailIds } = req.body
+
+      // Verify all emails belong to the user
+      const existingEmails = await prisma.email.findMany({
+        where: {
+          id: { in: emailIds },
+          gmailAccount: {
+            userId: userId
+          }
+        },
+        select: { id: true }
+      })
+
+      const foundEmailIds = existingEmails.map(email => email.id)
+      const notFoundIds = emailIds.filter((id: string) => !foundEmailIds.includes(id))
+
+      if (notFoundIds.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: `Emails not found or not accessible: ${notFoundIds.join(', ')}`
+        })
+      }
+
+      // Delete all emails and their related data (attachments will be cascade deleted)
+      const deleteResult = await prisma.email.deleteMany({
+        where: {
+          id: { in: foundEmailIds }
+        }
+      })
+
+      res.json({
+        success: true,
+        data: {
+          deletedCount: deleteResult.count,
+          deletedEmailIds: foundEmailIds
+        }
+      })
+    } catch (error) {
+      console.error('Bulk delete emails error:', error)
+      res.status(500).json({
+        success: false,
+        error: 'Failed to bulk delete emails'
       })
     }
   }

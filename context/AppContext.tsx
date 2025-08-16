@@ -56,21 +56,23 @@ export function AppContextProvider({ children, initialData }: AppContextProvider
 
   useEffect(() => {
     if (initialData) {
-      const newState = {
-        categories: initialData.categories || [],
-        activeCategory: initialData.activeCategory || null,
-        activeCategoryId: initialData.activeCategoryId || null,
-        gmailAccounts: initialData.gmailAccounts || [],
-        user: initialData.user
-      }
-      
-      if (newState.categories.length > 0 && !newState.activeCategory) {
-        const firstCategory = newState.categories[0]
-        newState.activeCategory = firstCategory.name
-        newState.activeCategoryId = firstCategory.id
-      }
-      
-      setState(newState)
+      setState(prevState => {
+        const newState = {
+          categories: initialData.categories || [],
+          activeCategory: prevState.activeCategory || initialData.activeCategory || null,
+          activeCategoryId: prevState.activeCategoryId || initialData.activeCategoryId || null,
+          gmailAccounts: initialData.gmailAccounts || [],
+          user: initialData.user
+        }
+        
+        if (newState.categories.length > 0 && !newState.activeCategory && !prevState.activeCategory) {
+          const firstCategory = newState.categories[0]
+          newState.activeCategory = firstCategory.name
+          newState.activeCategoryId = firstCategory.id
+        }
+        
+        return newState
+      })
     }
   }, [initialData])
 
@@ -87,9 +89,6 @@ export function AppContextProvider({ children, initialData }: AppContextProvider
       activeCategoryId: categoryId || null
     })
   }
-
-  console.log('APP STATE:::', state)
-  console.log('INITIAL DATA IN CONTEXT:::', initialData)
 
   const value: AppContextType = {
     state,
