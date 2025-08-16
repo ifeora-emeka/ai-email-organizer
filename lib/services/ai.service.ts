@@ -38,12 +38,15 @@ export class AIService
     ): Promise<AICategorizationResult | undefined>
     {
         try {
+            // Extract text content from email
             const textContent = this.extractTextContent(emailContent);
 
+            // Create category descriptions for AI
             const categoryDescriptions = categories.map(cat =>
                 `${cat.name}: ${cat.description}`
             ).join('\n');
 
+            // Define the output schema
             const outputSchema = z.object({
                 categoryName: z.string().describe("The exact category name from the provided list"),
                 confidence: z.number().min(0).max(1).describe("Confidence score between 0 and 1"),
@@ -52,7 +55,6 @@ export class AIService
                 unsubscribeLink: z.string().nullable().describe("Unsubscribe URL if found in email, otherwise null")
             });
 
-            //@ts-ignore
             const parser = StructuredOutputParser.fromZodSchema(outputSchema);
 
             const prompt = PromptTemplate.fromTemplate(`
@@ -87,6 +89,7 @@ Consider:
             const response = await openai.invoke(formattedPrompt);
             const aiResult = await parser.parse(response.content as string);
 
+            // Find the category ID based on the AI's category name
             const matchedCategory = categories.find(cat =>
                 cat.name.toLowerCase() === aiResult.categoryName.toLowerCase()
             );
@@ -107,6 +110,7 @@ Consider:
         } catch (error) {
             console.error('AI categorization error:', error);
 
+            // Fallback to default category if AI fails
             const defaultCategory = categories[ 0 ];
             return {
                 categoryId: defaultCategory?.id || '',
@@ -128,15 +132,15 @@ Consider:
         }
 
         if (emailContent.htmlBody) {
-            
+            // Basic HTML to text conversion
             const textContent = emailContent.htmlBody
-                .replace(/<[^>]*>/g, ' ')
-                .replace(/\s+/g, ' ') 
+                .replace(/<[^>]*>/g, ' ') // Remove HTML tags
+                .replace(/\s+/g, ' ') // Normalize whitespace
                 .trim();
             content += ' ' + textContent;
         }
 
-        return content.substring(0, 4000); 
+        return content.substring(0, 4000); // Limit content length for AI processing
     }
 
     static async extractUnsubscribeLink(emailContent: EmailContent): Promise<string | undefined>
@@ -144,11 +148,11 @@ Consider:
         try {
             const textContent = this.extractTextContent(emailContent);
 
+            // Define the output schema for unsubscribe link extraction
             const unsubscribeSchema = z.object({
                 unsubscribeLink: z.string().url().nullable().describe("The unsubscribe URL if found, otherwise null")
             });
 
-            //@ts-ignore
             const parser = StructuredOutputParser.fromZodSchema(unsubscribeSchema);
 
             const prompt = PromptTemplate.fromTemplate(`

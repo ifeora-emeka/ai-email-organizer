@@ -90,6 +90,7 @@ export function useOptimisticUpdate<TData, TVariables = any>(
       queryClient.invalidateQueries({ queryKey })
     },
     onSuccess: () => {
+      // No toast for optimistic updates
     },
   })
 }

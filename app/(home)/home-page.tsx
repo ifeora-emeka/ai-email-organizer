@@ -45,6 +45,7 @@ export default function HomePage() {
 
     console.log("GMAIL ACCOUNTS:::", gmailAccounts);
 
+    // Auto-start polling for all connected Gmail accounts
     useEffect(() => {
         if (gmailAccounts.length > 0 && !pollingStarted && session?.user) {
             console.log(
@@ -52,6 +53,7 @@ export default function HomePage() {
                 gmailAccounts.length
             );
 
+            // Start polling for each connected account
             gmailAccounts.forEach((account: GmailAccount) => {
                 if (account.isActive) {
                     startPolling.mutate(account.id);

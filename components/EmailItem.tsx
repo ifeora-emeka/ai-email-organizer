@@ -37,7 +37,7 @@ export function EmailItem({
         minute: '2-digit',
         hour12: true 
       })
-    } else if (diffInHours < 168) { 
+    } else if (diffInHours < 168) { // 7 days
       return date.toLocaleDateString('en-US', { weekday: 'short' })
     } else {
       return date.toLocaleDateString('en-US', { 

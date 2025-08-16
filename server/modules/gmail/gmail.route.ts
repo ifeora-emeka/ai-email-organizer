@@ -12,6 +12,7 @@ router.post('/', optionalAuth, GmailController.connectGmailAccount);
 
 router.get('/callback', optionalAuth, GmailController.connectGmailCallback);
 
+// Polling routes
 router.post('/:gmailAccountId/polling/start', optionalAuth, GmailController.startPolling);
 
 router.post('/:gmailAccountId/polling/stop', optionalAuth, GmailController.stopPolling);

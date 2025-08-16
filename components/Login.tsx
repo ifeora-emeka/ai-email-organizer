@@ -11,6 +11,7 @@ export default function Login() {
             console.log('🔐 Initiating Google sign-in...')
             toast.loading('Signing in with Google...', { id: 'signin' })
             
+            // Let NextAuth handle the redirect
             const result = await signIn('google', { 
                 callbackUrl: '/'
             })

@@ -47,6 +47,10 @@ export class GmailController
         };
         const state = Buffer.from(JSON.stringify(stateData)).toString('base64');
 
+        // Store CSRF token in session for verification
+        // @ts-ignore
+        // req.session.oauthState = csrfToken;
+
         const oauthUrl = oauth2Client.generateAuthUrl({
             access_type: 'offline',
             scope: scopes,
@@ -78,6 +82,10 @@ export class GmailController
             });
         }
 
+
+
+
+        // Parse state data
         let stateData;
         let metadata: { userId: string, source: string, redirect_uri: string; } = { userId: '', source: '', redirect_uri: '' };
 
@@ -88,6 +96,16 @@ export class GmailController
             return res.status(400).json({ error: 'Invalid state parameter format' });
         }
 
+        console.log("This is the stateData", stateData);
+        console.log("This is the metadata",);
+
+        // // Verify CSRF token
+        // // @ts-ignore
+        // if (!stateData.csrf ) {
+        //   return res.status(400).json({ error: 'Invalid state parameter' });
+        // }
+
+        // Check state timestamp to prevent replay attacks
         const stateAge = Date.now() - (stateData.timestamp || 0);
         const maxAge = 10 * 60 * 1000; // 10 minutes
         if (stateAge > maxAge) {
@@ -117,6 +135,7 @@ export class GmailController
         const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
         const userInfo = await oauth2.userinfo.get();
 
+        // Use metadata to determine user ID or create new one
         // @ts-ignore
         const userId = metadata.userId;
 
@@ -128,20 +147,18 @@ export class GmailController
             return res.status(400).json({ error: 'User not found' });
         }
 
-        // const gmailAccount = await prisma.gmailAccount.create({
-        //     data: {
-        //         userId,
-        //         email: userInfo.data.email as string,
-        //         name: userInfo.data.name as string,
-        //         accessToken: tokens.access_token as string,
-        //         refreshToken: tokens.refresh_token as string
-        //     }
-        // });
+        const gmailAccount = await prisma.gmailAccount.create({
+            data: {
+                userId,
+                email: userInfo.data.email as string,
+                name: userInfo.data.name as string,
+                accessToken: tokens.access_token as string,
+                refreshToken: tokens.refresh_token as string
+            }
+        });
 
         res.redirect(metadata.redirect_uri as string);
     }
-
-
     static async getGmailAccounts(req: AuthenticatedRequest, res: Response)
     {
         try {
@@ -180,6 +197,7 @@ export class GmailController
                 }
             }
 
+            // Build orderBy clause for sorting
             const orderBy: any = {};
             const validSortFields = [ 'email', 'name', 'createdAt', 'lastSync' ];
             const validSortOrders = [ 'asc', 'desc' ];
@@ -187,15 +205,18 @@ export class GmailController
             if (validSortFields.includes(sortBy as string)) {
                 orderBy[ sortBy as string ] = validSortOrders.includes(sortOrder as string) ? sortOrder : 'desc';
             } else {
-                orderBy.createdAt = 'desc'; 
+                orderBy.createdAt = 'desc'; // default sorting
             }
 
+            // Pagination
             const pageNum = Math.max(1, parseInt(page as string) || 1);
             const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 10));
             const skip = (pageNum - 1) * limitNum;
 
+            // Get total count for pagination
             const total = await prisma.gmailAccount.count({ where });
 
+            // Get accounts with filtering, sorting, and pagination
             const gmailAccounts = await prisma.gmailAccount.findMany({
                 where,
                 orderBy,
@@ -238,6 +259,7 @@ export class GmailController
         }
     }
 
+    // Polling Methods
     static async startPolling(req: AuthenticatedRequest, res: Response)
     {
         try {
@@ -250,6 +272,7 @@ export class GmailController
                 });
             }
 
+            // Verify the Gmail account belongs to the user
             const gmailAccount = await prisma.gmailAccount.findFirst({
                 where: {
                     id: gmailAccountId,
@@ -299,6 +322,7 @@ export class GmailController
                 });
             }
 
+            // Verify the Gmail account belongs to the user
             const gmailAccount = await prisma.gmailAccount.findFirst({
                 where: {
                     id: gmailAccountId,
@@ -329,6 +353,7 @@ export class GmailController
         }
     }
 
+    // Manual polling for testing
     static async manualPoll(req: AuthenticatedRequest, res: Response)
     {
         try {
@@ -341,6 +366,7 @@ export class GmailController
                 });
             }
 
+            // Verify the Gmail account belongs to the user
             const gmailAccount = await prisma.gmailAccount.findFirst({
                 where: {
                     id: gmailAccountId,
