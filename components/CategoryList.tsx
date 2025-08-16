@@ -100,10 +100,10 @@ export default function CategoryList() {
   }
 
   return (
-    <div className="h-full flex flex-col border-r">
-      <div className="p-4 border-b">
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b border-border/50">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Categories</h2>
+          <h2 className="text-lg font-semibold text-foreground">Categories</h2>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
@@ -166,13 +166,13 @@ export default function CategoryList() {
           {categories.map((category) => (
             <div
               key={category.id}
-              className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent cursor-pointer group"
+              className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 cursor-pointer group transition-colors"
             >
               <div className={`w-3 h-3 rounded-full ${category.color}`} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-medium truncate">{category.name}</h3>
-                  <Badge variant="secondary" className="ml-2">
+                  <h3 className="font-medium text-foreground truncate">{category.name}</h3>
+                  <Badge variant="secondary" className="ml-2 text-xs">
                     {category.emailCount}
                   </Badge>
                 </div>

@@ -25,7 +25,6 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account, profile }) {
       if (account?.provider === "google" && profile) {
         try {
-          // Just ensure the user exists in the database
           if (user.email) {
             await prisma.user.upsert({
               where: { email: user.email },

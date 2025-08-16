@@ -3,6 +3,7 @@ import React from 'react'
 import { Button } from '../ui/button'
 import { ArrowLeft } from 'lucide-react'
 import CategoryList from '../CategoryList';
+import ConnectedGmailList from '../ConnectedGmailList';
 
 type Props = {
     heading?: string;
@@ -12,25 +13,35 @@ type Props = {
 
 export default function AppLayout({ heading, onBack, children }: Props) {
     return (
-        <div className='h-screen w-screen bg-background flex items-center justify-center'>
+        <div className='min-h-screen w-full bg-background flex items-center justify-center p-4'>
+            <div className='w-full max-w-7xl h-[calc(100vh-2rem)] bg-background border border-border/50 shadow-lg rounded-xl overflow-hidden'>
+                <div className='h-full grid grid-cols-12'>
 
-            <div className='2xl:w-[80rem] 2xl:max-w-[80rem]- 2xl:h-[50rem] 2xl:max-h-[50rem] bg-card border shadow-md rounded-lg grid grid-cols-12 2xl:max-w-[80vw]'>
-                <div className='col-span-4 border-r h-full'>
-                    <CategoryList />
-                </div>
-                <div className='col-span-8'>
-                    <header className='border-b h-12 flex gap-2 items-center px-2'>
-                        {onBack && <Button size={'icon'} variant={'ghost'} onClick={onBack}>
-                            <ArrowLeft />
-                        </Button>}
-                        <h3>{heading || "Email Organizer"}</h3>
-                    </header>
-                    <main className='flex-1 overflow-y-auto overflow-x-hidden'>
-                        {children}
-                    </main>
+                    <div className='col-span-3 border-r border-border bg-card flex flex-col'>
+                        <CategoryList />
+                    </div>
+                    
+                    <div className='col-span-6 flex flex-col'>
+                        <header className='border-b border-border h-14 flex gap-3 items-center px-4 bg-card backdrop-blur-sm'>
+                            {onBack && (
+                                <Button size='sm' variant='ghost' onClick={onBack} className='h-8 w-8 p-0'>
+                                    <ArrowLeft className='h-4 w-4' />
+                                </Button>
+                            )}
+                            <h1 className='text-lg font-semibold text-foreground'>
+                                {heading || "Email Organizer"}
+                            </h1>
+                        </header>
+                        <main className='flex-1 overflow-y-auto bg-card/70'>
+                            {children}
+                        </main>
+                    </div>
+                    
+                    <div className='col-span-3 border-l border-border bg-card flex flex-col'>
+                        <ConnectedGmailList />
+                    </div>
                 </div>
             </div>
-
         </div>
     )
 }
