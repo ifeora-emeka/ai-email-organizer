@@ -3,13 +3,13 @@ import { z } from 'zod'
 export const CreateCategoryDto = z.object({
   name: z.string().min(1, 'Category name is required').max(100, 'Category name too long'),
   description: z.string().min(1, 'Category description is required').max(500, 'Description too long'),
-  color: z.string().regex(/^(bg-)?(blue|green|purple|orange|pink|indigo|red|yellow|teal|cyan|gray|slate)-\d{3}$/, 'Invalid color format')
+  color: z.string().regex(/^bg-(blue|green|purple|orange|pink|indigo|red|yellow|teal|cyan|gray|slate)-500$/, 'Invalid color format')
 })
 
 export const UpdateCategoryDto = z.object({
   name: z.string().min(1, 'Category name is required').max(100, 'Category name too long').optional(),
   description: z.string().min(1, 'Category description is required').max(500, 'Description too long').optional(),
-  color: z.string().regex(/^(bg-)?(blue|green|purple|orange|pink|indigo|red|yellow|teal|cyan|gray|slate)-\d{3}$/, 'Invalid color format').optional()
+  color: z.string().regex(/^bg-(blue|green|purple|orange|pink|indigo|red|yellow|teal|cyan|gray|slate)-500$/, 'Invalid color format').optional()
 })
 
 export const CategoryParamsDto = z.object({

@@ -17,26 +17,38 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 
-export const createApp = async () => {
+export const createApp = async () =>
+{
   const server = express();
 
   server.set('trust proxy', 1);
 
-  server.use(cors({
-    origin: ['http://localhost:3000'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
-  }));
+  // More permissive CORS for development
+  if (process.env.NODE_ENV === 'development') {
+    server.use(cors({
+      origin: true, // Allow all origins in development
+      credentials: true,
+      methods: [ 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ],
+      allowedHeaders: [ 'Content-Type', 'Authorization', 'Cookie', 'X-User-Email', 'Origin', 'Accept' ],
+    }));
+  } else {
+    server.use(cors({
+      origin: [ process.env.FRONTEND_URL || 'https://your-domain.com' ],
+      credentials: true,
+      methods: [ 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ],
+      allowedHeaders: [ 'Content-Type', 'Authorization', 'Cookie', 'X-User-Email', 'Origin', 'Accept' ],
+    }));
+  }
 
   server.use('/api/v1', limiter);
-  
+
   server.use('/api/v1', express.json());
   server.use('/api/v1', express.urlencoded({ extended: true }));
 
   server.use('/api/v1', apiRoutes);
 
-  server.get('/', (req, res) => {
+  server.get('/', (req, res) =>
+  {
     res.json({
       message: 'AI Email Organizer API',
       version: '1.0.0',

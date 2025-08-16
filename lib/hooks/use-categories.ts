@@ -63,6 +63,7 @@ export function useCreateCategory() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.dependencies })
       toast.success(`Category "${data.name}" created successfully`)
     },
   })

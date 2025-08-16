@@ -17,6 +17,44 @@ export interface AuthSession {
   expires: string
 }
 
+export interface Category {
+  id: string
+  name: string
+  description: string
+  color: string
+  emailCount: number
+}
+
+export interface GmailAccount {
+  id: string
+  email: string
+  name: string
+  isActive: boolean
+  lastSync: Date
+  emailCount: number
+}
+
+export interface Email {
+  id: string
+  subject: string
+  fromEmail: string
+  fromName: string
+  receivedAt: string
+  aiSummary: string
+  body: string
+  hasAttachments: boolean
+  isRead: boolean
+  category: string
+  aiConfidence: number
+  priority: 'high' | 'medium' | 'low'
+}
+
+export interface AppDependencies {
+  user: User
+  categories: Category[]
+  gmailAccounts: (Omit<GmailAccount, 'lastSync'> & { lastSync: string })[]
+}
+
 export function useAuthSession() {
   const { data: session, status } = useSession()
 
@@ -28,6 +66,21 @@ export function useAuthSession() {
     },
     enabled: !!session?.user && status === 'authenticated',
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useAppDependencies() {
+  const { data: session, status } = useSession()
+
+  return useQuery<AppDependencies>({
+    queryKey: queryKeys.auth.dependencies,
+    queryFn: async (): Promise<AppDependencies> => {
+      const response = await api.get<AppDependencies>('/auth/dependencies')
+      return response.data.data
+    },
+    enabled: !!session?.user && status === 'authenticated',
+    staleTime: 5 * 60 * 1000,
+    retry: 2,
   })
 }
 

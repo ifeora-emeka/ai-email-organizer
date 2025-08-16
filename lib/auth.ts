@@ -1,7 +1,7 @@
-import NextAuth, { type NextAuthOptions } from "next-auth"
-import GoogleProvider from "next-auth/providers/google"
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import { prisma } from "./prisma"
+import NextAuth, { type NextAuthOptions } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { prisma } from "./prisma";
 
 export const authOptions: NextAuthOptions = {
   //@ts-ignore
@@ -22,54 +22,35 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
-      if (account?.provider === "google" && profile) {
-        try {
-          if (user.email) {
-            await prisma.user.upsert({
-              where: { email: user.email },
-              update: {
-                name: user.name,
-                image: user.image,
-              },
-              create: {
-                email: user.email,
-                name: user.name,
-                image: user.image,
-              },
-            });
-          }
-          return true;
-        } catch (error) {
-          console.error('Error syncing user with database:', error);
-          return false;
-        }
-      }
-      return true
-    },
-    async session({ session, token }) {
+    // Remove the custom signIn callback - let PrismaAdapter handle user creation
+    async session({ session, token })
+    {
+      // For JWT sessions
       if (session?.user && token) {
-        session.user.id = token.sub || ''
-        session.accessToken = token.accessToken as string
+        session.user.id = token.sub || '';
+        session.accessToken = token.accessToken as string;
       }
-      return session
+      return session;
     },
-    async jwt({ token, account, user }) {
+    async jwt({ token, account, user })
+    {
+      // This callback is less relevant when using database sessions with PrismaAdapter
       if (user) {
-        token.sub = user.id
+        token.sub = user.id;
       }
       if (account) {
-        token.accessToken = account.access_token
-        token.refreshToken = account.refresh_token
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
       }
-      return token
+      return token;
     }
   },
+  // If you prefer JWT sessions, use this instead:
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, 
+    maxAge: 30 * 24 * 60 * 60,
   },
   debug: process.env.NODE_ENV === 'development'
-}
+};
 
-export default NextAuth(authOptions)
+export default NextAuth(authOptions);

@@ -5,6 +5,12 @@ export interface ApiResponse<T = any> {
   message?: string
 }
 
+export interface ApiError {
+  message: string
+  code?: string
+  details?: any
+}
+
 export interface PaginatedResponse<T> extends ApiResponse<T> {
   pagination?: {
     page: number
