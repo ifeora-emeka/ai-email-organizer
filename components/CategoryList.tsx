@@ -135,7 +135,6 @@ export default function CategoryList() {
   }
 
   const getCategoryEmailCount = (categoryName: string) => {
-    // Return the email count from the category data (from API)
     const category = state.categories.find(cat => cat.name === categoryName)
     return category?.emailCount || 0
   }
@@ -196,11 +195,11 @@ export default function CategoryList() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="color">Color</Label>
-                  <Select 
-                    value={formData.color} 
+                  <Select
+                    value={formData.color}
                     onValueChange={(value) => handleInputChange("color", value)}
                   >
-                    <SelectTrigger className={cn("w-full",errors.color && "border-red-500 focus-visible:ring-red-500")}>
+                    <SelectTrigger className={cn("w-full", errors.color && "border-red-500 focus-visible:ring-red-500")}>
                       <SelectValue placeholder="Choose a color">
                         {formData.color && (
                           <div className="flex items-center gap-2">
@@ -227,8 +226,8 @@ export default function CategoryList() {
                 </div>
               </div>
               <DialogFooter>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setIsDialogOpen(false)
                     setFormData({ name: "", description: "", color: "" })
@@ -237,7 +236,7 @@ export default function CategoryList() {
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   onClick={handleCreateCategory}
                   disabled={createCategoryMutation.isPending}
                 >
@@ -257,18 +256,19 @@ export default function CategoryList() {
           {state.categories.map((category) => (
             <div
               key={category.id}
-              className={`flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 cursor-pointer group transition-colors ${
-                state.activeCategory === category.name ? 'bg-accent border border-primary/20' : ''
-              }`}
+              className={`flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 cursor-pointer group transition-colors ${state.activeCategory === category.name ? 'bg-accent border border-primary/20' : ''
+                }`}
               onClick={() => handleCategoryClick(category.name, category.id)}
             >
               <div className={`w-3 h-3 rounded-full ${category.color}`} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium text-foreground truncate">{category.name}</h3>
-                  <Badge variant="secondary" className="ml-2 text-xs">
-                    {getCategoryEmailCount(category.name)}
-                  </Badge>
+                  {Number(getCategoryEmailCount(category.name)) > 0 && (
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      {getCategoryEmailCount(category.name)}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground truncate mt-1">
                   {category.description}

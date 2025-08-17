@@ -3,11 +3,10 @@
 import React from "react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
     Plus,
     Mail,
-    CheckCircle2,
     AlertCircle,
     Clock,
     Loader2,
@@ -119,10 +118,6 @@ export default function ConnectedGmailList() {
                         >
                             <div className='flex items-center gap-3 flex-1 min-w-0'>
                                 <Avatar className="h-8 w-8">
-                                    <AvatarImage 
-                                        src={state.user?.image || undefined} 
-                                        alt={account.name || account.email}
-                                    />
                                     <AvatarFallback className="text-xs font-medium">
                                         {getInitials(account.name || '', account.email)}
                                     </AvatarFallback>

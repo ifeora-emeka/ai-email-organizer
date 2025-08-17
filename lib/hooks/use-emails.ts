@@ -94,10 +94,10 @@ export function useEmails(query: EmailQuery = {}, options: { polling?: boolean; 
   return useApiQuery<EmailsResponse>({
     url,
     queryKey: [ ...queryKeys.emails.list(query) ],
-    enabled: true,
+    // enabled: true,
     refetchInterval: polling ? pollingInterval : false,
     refetchIntervalInBackground: polling,
-    staleTime: polling ? 0 : 5 * 60 * 1000, // 5 minutes when not polling, 0 when polling
+    staleTime: polling ? 0 : 5 * 60 * 1000,
   });
 }
 

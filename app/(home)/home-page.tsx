@@ -12,6 +12,7 @@ import {
     Trash2,
     UserX,
     SparkleIcon,
+    UserIcon,
 } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import {
@@ -307,10 +308,9 @@ export default function HomePage() {
                         <p className='text-sm text-muted-foreground'>
                             {activeCategory
                                 ? `Showing ${emails.length} emails in ${activeCategory} category`
-                                : `Welcome back, ${
-                                      session?.user?.name ||
-                                      session?.user?.email
-                                  }.`}
+                                : `Welcome back, ${session?.user?.name ||
+                                session?.user?.email
+                                }.`}
                         </p>
                     </div>
                 </div>
@@ -398,7 +398,7 @@ export default function HomePage() {
                                                 onClick={handleSelectAll}
                                             >
                                                 {selectedEmailIds.length ===
-                                                emails.length
+                                                    emails.length
                                                     ? "Deselect All"
                                                     : "Select All"}
                                             </Button>
@@ -431,15 +431,13 @@ export default function HomePage() {
                                 {emails?.map((email) => (
                                     <div
                                         key={email.id}
-                                        className={`p-4 hover:bg-accent/50 transition-colors ${
-                                            !email.isRead
+                                        className={`p-4 hover:bg-accent/50 transition-colors ${!email.isRead
                                                 ? "bg-primary/5 border-l-2 border-l-primary"
                                                 : ""
-                                        } ${
-                                            selectedEmailIds.includes(email.id)
+                                            } ${selectedEmailIds.includes(email.id)
                                                 ? "bg-primary/10"
                                                 : ""
-                                        }`}
+                                            }`}
                                     >
                                         <div className='flex items-start gap-4'>
                                             <div className='flex items-center pt-1'>
@@ -467,22 +465,20 @@ export default function HomePage() {
                                             >
                                                 <div className='flex items-center gap-2 mb-2'>
                                                     <span
-                                                        className={`font-medium text-foreground text-sm ${
-                                                            !email.isRead
+                                                        className={`font-medium text-foreground text-sm ${!email.isRead
                                                                 ? "font-semibold"
                                                                 : ""
-                                                        }`}
+                                                            }`}
                                                     >
                                                         {email.fromName}
                                                     </span>
                                                 </div>
 
                                                 <h3
-                                                    className={`text-sm text-foreground mb-2 ${
-                                                        !email.isRead
+                                                    className={`text-sm text-foreground mb-2 ${!email.isRead
                                                             ? "font-semibold"
                                                             : ""
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {email.subject}
                                                 </h3>
@@ -491,33 +487,38 @@ export default function HomePage() {
                                                     {email.aiSummary}
                                                 </p>
 
-                                                <div className='flex items-center gap-4 text-xs text-muted-foreground'>
-                                                    <div className='flex items-center gap-1'>
-                                                        <Clock className='h-3 w-3' />
-                                                        <span>
-                                                            {formatTimeAgo(
-                                                                email.receivedAt
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    {email.hasAttachments && (
+                                                <div className='flex items-center justify-between gap-4 text-xs text-muted-foreground'>
+                                                    <div className="flex items-center gap-2">
                                                         <div className='flex items-center gap-1'>
-                                                            <Paperclip className='h-3 w-3' />
+                                                            <Clock className='h-3 w-3' />
                                                             <span>
-                                                                Attachment
+                                                                {formatTimeAgo(
+                                                                    email.receivedAt
+                                                                )}
                                                             </span>
                                                         </div>
-                                                    )}
-                                                    <div className='flex items-center gap-1'>
-                                                        <span>
-                                                            AI:{" "}
-                                                            {Math.round(
-                                                                email.aiConfidence *
+                                                        {email.hasAttachments && (
+                                                            <div className='flex items-center gap-1'>
+                                                                <Paperclip className='h-3 w-3' />
+                                                                <span>
+                                                                    Attachment
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        <div className='flex items-center gap-1'>
+                                                            <span>
+                                                                AI:{" "}
+                                                                {Math.round(
+                                                                    email.aiConfidence *
                                                                     100
-                                                            )}
-                                                            %
-                                                        </span>
+                                                                )}
+                                                                %
+                                                            </span>
+                                                        </div>
                                                     </div>
+                                                    <span className='text-xs text-muted-foreground flex gap-2 items-center'>
+                                                        <UserIcon className='h-5 w-5' /> {email.gmailAccount?.name || email.gmailAccount?.email}
+                                                    </span>
                                                 </div>
                                             </div>
 

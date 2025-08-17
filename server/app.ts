@@ -8,7 +8,7 @@ dotenv.config();
 
 const limiter = rateLimit({
   windowMs: parseInt('900000'),
-  max: parseInt('100'),
+  max: parseInt('9100'),
   message: {
     error: 'Too many requests from this IP, please try again later.',
     retryAfter: Math.ceil(parseInt('900000') / 1000)
@@ -23,7 +23,6 @@ export const createApp = async () =>
 
   server.set('trust proxy', 1);
 
-  // More permissive CORS for development
   if (process.env.NODE_ENV === 'development') {
     server.use(cors({
       origin: true, // Allow all origins in development
