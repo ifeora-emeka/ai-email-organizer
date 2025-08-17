@@ -1,11 +1,5 @@
-// Optional: configure or set up a testing framework before each test.
-// If you delete this file, remove `setupFilesAfterEnv` from `jest.config.js`
-
-// Used for __tests__/testing-library.js
-// Learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom'
 
-// Mock next/router
 jest.mock('next/router', () => ({
   useRouter() {
     return {
@@ -59,7 +53,6 @@ jest.mock('sonner', () => ({
   },
 }))
 
-// Mock next-auth/react
 jest.mock('next-auth/react', () => ({
   useSession: jest.fn(() => ({
     data: null,
@@ -70,7 +63,6 @@ jest.mock('next-auth/react', () => ({
   SessionProvider: ({ children }) => children,
 }))
 
-// Mock @tanstack/react-query
 jest.mock('@tanstack/react-query', () => ({
   useQuery: jest.fn(),
   useMutation: jest.fn(),
@@ -81,7 +73,6 @@ jest.mock('@tanstack/react-query', () => ({
   QueryClientProvider: ({ children }) => children,
 }))
 
-// Mock context
 jest.mock('@/context/AppContext', () => ({
   useAppContext: jest.fn(() => ({
     state: {
@@ -95,7 +86,6 @@ jest.mock('@/context/AppContext', () => ({
   })),
 }))
 
-// Mock API hooks
 jest.mock('@/lib/hooks', () => ({
   useApiMutation: jest.fn(),
   useCategories: jest.fn(),
@@ -110,15 +100,14 @@ jest.mock('@/lib/hooks/use-emails', () => ({
   useBulkUpdateEmails: jest.fn(),
 }))
 
-// Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation(query => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: jest.fn(), // deprecated
-    removeListener: jest.fn(), // deprecated
+    addListener: jest.fn(), 
+    removeListener: jest.fn(),
     addEventListener: jest.fn(),
     removeEventListener: jest.fn(),
     dispatchEvent: jest.fn(),

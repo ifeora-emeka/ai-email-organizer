@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import EachEmail from '@/components/EachEmail'
 
-// Mock the UI components
 jest.mock('@/components/ui/checkbox', () => ({
   Checkbox: ({ checked, onCheckedChange, className, ...props }: any) => (
     <input
@@ -17,7 +16,6 @@ jest.mock('@/components/ui/checkbox', () => ({
   ),
 }))
 
-// Mock Lucide React icons
 jest.mock('lucide-react', () => ({
   Clock: ({ className, ...props }: any) => (
     <div className={className} {...props} data-testid="clock-icon" />
@@ -74,22 +72,16 @@ describe('EachEmail', () => {
       />
     )
 
-    // Check if the main container has the correct test ID
     expect(screen.getByTestId('email-test-email-1')).toBeInTheDocument()
     
-    // Check if email subject is displayed
     expect(screen.getByTestId('email-subject')).toHaveTextContent('Important Business Meeting')
     
-    // Check if sender name is displayed
     expect(screen.getByTestId('email-from-name')).toHaveTextContent('John Doe')
     
-    // Check if AI summary is displayed
     expect(screen.getByTestId('email-ai-summary')).toHaveTextContent('Meeting scheduled for next week to discuss quarterly results')
     
-    // Check if AI confidence is displayed
     expect(screen.getByTestId('email-ai-confidence')).toHaveTextContent('AI: 95%')
     
-    // Check if Gmail account is displayed
     expect(screen.getByTestId('email-gmail-account')).toHaveTextContent('Business Account')
   })
 
@@ -104,18 +96,14 @@ describe('EachEmail', () => {
       />
     )
 
-    // Check if unread indicator is present
     expect(screen.getByTestId('email-unread-indicator')).toBeInTheDocument()
     
-    // Check if unread styling is applied
     const container = screen.getByTestId('email-test-email-1')
     expect(container).toHaveClass('bg-primary/5', 'border-l-2', 'border-l-primary')
     
-    // Check if sender name has bold styling for unread
     const fromName = screen.getByTestId('email-from-name')
     expect(fromName).toHaveClass('font-semibold')
     
-    // Check if subject has bold styling for unread
     const subject = screen.getByTestId('email-subject')
     expect(subject).toHaveClass('font-semibold')
   })
@@ -133,18 +121,14 @@ describe('EachEmail', () => {
       />
     )
 
-    // Check if unread indicator is not present
     expect(screen.queryByTestId('email-unread-indicator')).not.toBeInTheDocument()
     
-    // Check if unread styling is not applied
     const container = screen.getByTestId('email-test-email-1')
     expect(container).not.toHaveClass('bg-primary/5', 'border-l-2', 'border-l-primary')
     
-    // Check if sender name does not have bold styling
     const fromName = screen.getByTestId('email-from-name')
     expect(fromName).not.toHaveClass('font-semibold')
     
-    // Check if subject does not have bold styling
     const subject = screen.getByTestId('email-subject')
     expect(subject).not.toHaveClass('font-semibold')
   })
@@ -325,7 +309,6 @@ describe('EachEmail', () => {
 
     const gmailAccountElement = screen.getByTestId('email-gmail-account')
     expect(gmailAccountElement).toBeInTheDocument()
-    // Should handle undefined gracefully
   })
 
   it('handles very long subjects correctly', () => {

@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import EachCategory from '@/components/EachCategory'
 
-// Mock the UI components
 jest.mock('@/components/ui/badge', () => ({
   Badge: ({ children, className, variant, ...props }: any) => (
     <span className={className} data-variant={variant} {...props}>
@@ -38,19 +37,14 @@ describe('EachCategory', () => {
       />
     )
 
-    // Check if the main container has the correct test ID
     expect(screen.getByTestId('category-test-category-1')).toBeInTheDocument()
     
-    // Check if category name is displayed
     expect(screen.getByTestId('category-name')).toHaveTextContent('Work Emails')
     
-    // Check if description is displayed
     expect(screen.getByTestId('category-description')).toHaveTextContent('Professional correspondence and work-related communications')
     
-    // Check if email count badge is displayed
     expect(screen.getByTestId('category-email-count')).toHaveTextContent('15')
     
-    // Check if color indicator is present
     expect(screen.getByTestId('category-color-indicator')).toBeInTheDocument()
   })
 
@@ -314,7 +308,6 @@ describe('EachCategory', () => {
 
     const colorIndicator = screen.getByTestId('category-color-indicator')
     expect(colorIndicator).toBeInTheDocument()
-    // Should still have base classes but no color class
     expect(colorIndicator).toHaveClass('w-3', 'h-3', 'rounded-full')
   })
 
@@ -350,7 +343,6 @@ describe('EachCategory', () => {
 
     const container = screen.getByTestId('category-test-category-1')
     
-    // Simulate rapid clicks
     await user.click(container)
     await user.click(container)
     await user.click(container)
