@@ -31,6 +31,7 @@ export default function EachEmail({
                     ? "bg-primary/10"
                     : ""
             }`}
+            data-testid={`email-${email.id}`}
         >
             <div className='flex items-start gap-4'>
                 <div className='flex items-center pt-1'>
@@ -40,18 +41,22 @@ export default function EachEmail({
                             onSelect(email.id, checked as boolean)
                         }
                         className='h-4 w-4'
+                        data-testid="email-checkbox"
                     />
                 </div>
 
                 <div
                     className='flex-1 min-w-0 cursor-pointer'
                     onClick={() => onClick(email)}
+                    data-testid="email-content"
+                    role="button"
                 >
                     <div className='flex items-center gap-2 mb-2'>
                         <span
                             className={`font-medium text-foreground text-sm ${
                                 !email.isRead ? "font-semibold" : ""
                             }`}
+                            data-testid="email-from-name"
                         >
                             {email.fromName}
                         </span>
@@ -61,35 +66,45 @@ export default function EachEmail({
                         className={`text-sm text-foreground mb-2 ${
                             !email.isRead ? "font-semibold" : ""
                         }`}
+                        data-testid="email-subject"
                     >
                         {email.subject}
                     </h3>
 
-                    <p className='text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-3'>
+                    <p 
+                        className='text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-3'
+                        data-testid="email-ai-summary"
+                    >
                         {email.aiSummary}
                     </p>
 
                     <div className='flex items-center justify-between gap-4 text-xs text-muted-foreground'>
-                        <div className="flex items-center gap-2">
-                            <div className='flex items-center gap-1'>
+                        <div className="flex items-center gap-2" data-testid="email-metadata">
+                            <div className='flex items-center gap-1' data-testid="email-time">
                                 <Clock className='h-3 w-3' />
                                 <span>
                                     {formatTimeAgo(email.receivedAt)}
                                 </span>
                             </div>
                             {email.hasAttachments && (
-                                <div className='flex items-center gap-1'>
+                                <div 
+                                    className='flex items-center gap-1'
+                                    data-testid="email-attachments"
+                                >
                                     <Paperclip className='h-3 w-3' />
                                     <span>Attachment</span>
                                 </div>
                             )}
-                            <div className='flex items-center gap-1'>
+                            <div className='flex items-center gap-1' data-testid="email-ai-confidence">
                                 <span>
                                     AI: {Math.round(email.aiConfidence * 100)}%
                                 </span>
                             </div>
                         </div>
-                        <span className='text-xs text-muted-foreground flex gap-2 items-center'>
+                        <span 
+                            className='text-xs text-muted-foreground flex gap-2 items-center'
+                            data-testid="email-gmail-account"
+                        >
                             <UserIcon className='h-5 w-5' /> 
                             {email.gmailAccount?.name || email.gmailAccount?.email}
                         </span>
@@ -98,7 +113,10 @@ export default function EachEmail({
 
                 <div className='flex items-center gap-2'>
                     {!email.isRead && (
-                        <div className='w-2 h-2 bg-primary rounded-full'></div>
+                        <div 
+                            className='w-2 h-2 bg-primary rounded-full'
+                            data-testid="email-unread-indicator"
+                        />
                     )}
                 </div>
             </div>
