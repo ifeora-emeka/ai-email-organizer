@@ -12,7 +12,7 @@
         "start:frontend": "next start",
         "lint": "next lint",
         "deploy": "fly deploy",
-        "deploy:staging": "fly deploy --app ai-email-organizer-staging",
+        "deploy:do": "bash deploy-do.sh",
         "db:generate": "prisma generate",
         "db:push": "prisma db push",
         "db:migrate": "prisma migrate dev",
