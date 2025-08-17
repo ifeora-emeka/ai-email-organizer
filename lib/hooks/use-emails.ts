@@ -22,10 +22,10 @@ export interface Email
   categoryId: string | null;
   aiConfidence: number;
   priority: 'high' | 'medium' | 'low';
-  gmailAccount: {
+  gmailAccount?: {
     id: string;
     email: string;
-    name: string;
+    name?: string;
   };
   attachments?: {
     id: string;
