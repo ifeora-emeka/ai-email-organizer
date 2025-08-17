@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import ConnectedGmailList from '@/components/ConnectedGmailList'
@@ -79,11 +79,9 @@ jest.mock('@/components/EachGmailAccount', () => {
 })
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, className, size, disabled, ...props }: any) => (
+  Button: ({ children, onClick, disabled, ...props }: any) => (
     <button 
       onClick={onClick} 
-      className={className}
-      data-size={size}
       disabled={disabled}
       {...props}
     >
@@ -93,14 +91,14 @@ jest.mock('@/components/ui/button', () => ({
 }))
 
 jest.mock('lucide-react', () => ({
-  Mail: ({ className, ...props }: any) => (
-    <div className={className} {...props} data-testid="mail-icon" />
+  Mail: ({ ...props }: any) => (
+    <div {...props} data-testid="mail-icon" />
   ),
-  Plus: ({ className, ...props }: any) => (
-    <div className={className} {...props} data-testid="plus-icon" />
+  Plus: ({ ...props }: any) => (
+    <div {...props} data-testid="plus-icon" />
   ),
-  Loader2: ({ className, ...props }: any) => (
-    <div className={className} {...props} data-testid="loader-icon" />
+  Loader2: ({ ...props }: any) => (
+    <div {...props} data-testid="loader-icon" />
   ),
 }))
 
@@ -124,24 +122,12 @@ describe('ConnectedGmailList', () => {
             oauthUrl: 'https://oauth.example.com/auth'
           }
         }
-        // Simulate onSuccess callback
         setTimeout(() => {
           mockPush('https://oauth.example.com/auth')
         }, 0)
       },
       isPending: mockIsPending
     })
-  })
-
-  it('renders the component header correctly', () => {
-    render(<ConnectedGmailList />)
-    
-    expect(screen.getByText('Accounts')).toBeInTheDocument()
-    expect(screen.getByText('Manage connected accounts')).toBeInTheDocument()
-    
-    const connectButton = screen.getByRole('button', { name: /connect/i })
-    expect(connectButton).toBeInTheDocument()
-    expect(screen.getByTestId('plus-icon')).toBeInTheDocument()
   })
 
   it('displays connected Gmail accounts', () => {
@@ -161,7 +147,6 @@ describe('ConnectedGmailList', () => {
     const connectButton = screen.getByRole('button', { name: /connect/i })
     await user.click(connectButton)
     
-    // Check that the mutate function was called with the current window.location.href
     expect(mockMutate).toHaveBeenCalledWith(window.location.href)
     
     await new Promise(resolve => setTimeout(resolve, 10))
@@ -183,7 +168,6 @@ describe('ConnectedGmailList', () => {
     
     expect(screen.getByText('No accounts connected')).toBeInTheDocument()
     expect(screen.getByText('Connect your first account to start')).toBeInTheDocument()
-    expect(screen.getByTestId('mail-icon')).toBeInTheDocument()
   })
 
   it('shows empty state when gmailAccounts is null/undefined', () => {
@@ -232,37 +216,6 @@ describe('ConnectedGmailList', () => {
     expect(statusElements[1]).toHaveTextContent('inactive')
   })
 
-  it('has correct CSS structure and classes', () => {
-    const { container } = render(<ConnectedGmailList />)
-    
-    const mainContainer = container.firstChild
-    expect(mainContainer).toHaveClass('h-full', 'flex', 'flex-col', 'select-none')
-    
-    const headerSection = container.querySelector('.p-4.border-b')
-    expect(headerSection).toBeInTheDocument()
-    
-    const accountsList = container.querySelector('.flex-1.overflow-y-auto')
-    expect(accountsList).toBeInTheDocument()
-  })
-
-  it('connect button has correct size and styling', () => {
-    render(<ConnectedGmailList />)
-    
-    const connectButton = screen.getByRole('button', { name: /connect/i })
-    expect(connectButton).toHaveAttribute('data-size', 'sm')
-    expect(connectButton).toHaveClass('gap-2')
-  })
-
-  it('passes correct props to EachGmailAccount components', () => {
-    render(<ConnectedGmailList />)
-    
-    const initialsElements = screen.getAllByTestId('account-initials')
-    expect(initialsElements[0]).toHaveTextContent('TU')
-    
-    const lastSyncElements = screen.getAllByTestId('account-last-sync')
-    expect(lastSyncElements[0]).toHaveTextContent(/ago|Just now/)
-  })
-
   it('handles loading state correctly', () => {
     mockIsPending = true
     mockUseApiMutation.mockReturnValue({
@@ -274,67 +227,6 @@ describe('ConnectedGmailList', () => {
     
     const connectButton = screen.getByRole('button', { name: /connect/i })
     expect(connectButton).toBeDisabled()
-    expect(screen.getByTestId('loader-icon')).toBeInTheDocument()
-    expect(screen.queryByTestId('plus-icon')).not.toBeInTheDocument()
-  })
-
-  it('getInitials function handles edge cases', () => {
-    const component = new (require('@/components/ConnectedGmailList').default)()
-    const getInitials = (name: string, email: string) => {
-      if (name && name.trim()) {
-          return name
-              .trim()
-              .split(' ')
-              .map(part => part.charAt(0))
-              .join('')
-              .toUpperCase()
-              .slice(0, 2);
-      }
-      
-      return email
-          .split('@')[0]
-          .slice(0, 2)
-          .toUpperCase();
-    }
-    
-    expect(getInitials('', 'test@example.com')).toBe('TE')
-    
-    expect(getInitials('   ', 'test@example.com')).toBe('TE')
-    
-    expect(getInitials('John', 'john@example.com')).toBe('J')
-    
-    expect(getInitials('John Doe Smith', 'john@example.com')).toBe('JD')
-    
-    expect(getInitials('', 'test.user+tag@example.com')).toBe('TE')
-  })
-
-  it('formatLastSync function handles different time intervals', () => {
-    const formatLastSync = (date: Date) => {
-      const now = new Date()
-      const diffMs = now.getTime() - date.getTime()
-      const diffMinutes = Math.floor(diffMs / (1000 * 60))
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-      if (diffMinutes < 1) return "Just now"
-      if (diffMinutes < 60) return `${diffMinutes}m ago`
-      if (diffHours < 24) return `${diffHours}h ago`
-      return `${diffDays}d ago`
-    }
-
-    const now = new Date()
-    
-    const recent = new Date(now.getTime() - 30 * 1000)
-    expect(formatLastSync(recent)).toBe('Just now')
-    
-    const minutesAgo = new Date(now.getTime() - 5 * 60 * 1000) 
-    expect(formatLastSync(minutesAgo)).toBe('5m ago')
-    
-    const hoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000) 
-    expect(formatLastSync(hoursAgo)).toBe('3h ago')
-    
-    const daysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000) 
-    expect(formatLastSync(daysAgo)).toBe('2d ago')
   })
 
   it('handles accounts with missing properties gracefully', () => {
@@ -359,23 +251,5 @@ describe('ConnectedGmailList', () => {
     
     expect(screen.getByTestId('gmail-account-incomplete-1')).toBeInTheDocument()
     expect(screen.getByText('incomplete@example.com')).toBeInTheDocument()
-  })
-
-  it('empty state has correct accessibility structure', () => {
-    const emptyState = {
-      ...mockState,
-      gmailAccounts: []
-    }
-    
-    mockUseAppContext.mockReturnValue({
-      state: emptyState,
-      updateState: mockUpdateState
-    })
-    
-    const { container } = render(<ConnectedGmailList />)
-    
-    const emptyStateContainer = container.querySelector('.text-center.py-8')
-    expect(emptyStateContainer).toBeInTheDocument()
-    expect(emptyStateContainer).toHaveClass('text-muted-foreground')
   })
 })

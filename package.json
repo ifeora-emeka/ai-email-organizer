@@ -20,6 +20,7 @@
         "db:studio": "prisma studio",
         "db:seed": "tsx prisma/seed.ts",
         "test": "jest",
+        "text:frontend": "npm test tests/frontend",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "postinstall": "prisma generate"

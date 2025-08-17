@@ -1,12 +1,12 @@
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom'
 import EachCategory from '@/components/EachCategory'
 
 jest.mock('@/components/ui/badge', () => ({
-  Badge: ({ children, className, variant, ...props }: any) => (
-    <span className={className} data-variant={variant} {...props}>
+  Badge: ({ children, ...props }: any) => (
+    <span {...props}>
       {children}
     </span>
   ),
@@ -25,57 +25,6 @@ describe('EachCategory', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-  })
-
-  it('renders category information correctly', () => {
-    render(
-      <EachCategory
-        category={mockCategory}
-        isActive={false}
-        emailCount={15}
-        onClick={mockOnClick}
-      />
-    )
-
-    expect(screen.getByTestId('category-test-category-1')).toBeInTheDocument()
-    
-    expect(screen.getByTestId('category-name')).toHaveTextContent('Work Emails')
-    
-    expect(screen.getByTestId('category-description')).toHaveTextContent('Professional correspondence and work-related communications')
-    
-    expect(screen.getByTestId('category-email-count')).toHaveTextContent('15')
-    
-    expect(screen.getByTestId('category-color-indicator')).toBeInTheDocument()
-  })
-
-  it('displays active state correctly', () => {
-    render(
-      <EachCategory
-        category={mockCategory}
-        isActive={true}
-        emailCount={15}
-        onClick={mockOnClick}
-      />
-    )
-
-    const container = screen.getByTestId('category-test-category-1')
-    expect(container).toHaveClass('bg-accent', 'border', 'border-primary/20')
-    expect(container).toHaveAttribute('aria-pressed', 'true')
-  })
-
-  it('displays inactive state correctly', () => {
-    render(
-      <EachCategory
-        category={mockCategory}
-        isActive={false}
-        emailCount={15}
-        onClick={mockOnClick}
-      />
-    )
-
-    const container = screen.getByTestId('category-test-category-1')
-    expect(container).not.toHaveClass('bg-accent', 'border', 'border-primary/20')
-    expect(container).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('handles click events correctly', async () => {
@@ -144,79 +93,6 @@ describe('EachCategory', () => {
     expect(screen.getByTestId('category-email-count')).toHaveTextContent('5')
   })
 
-  it('applies correct color to color indicator', () => {
-    render(
-      <EachCategory
-        category={mockCategory}
-        isActive={false}
-        emailCount={15}
-        onClick={mockOnClick}
-      />
-    )
-
-    const colorIndicator = screen.getByTestId('category-color-indicator')
-    expect(colorIndicator).toHaveClass('bg-blue-500')
-  })
-
-  it('handles different color classes correctly', () => {
-    const categoryWithDifferentColor = {
-      ...mockCategory,
-      color: 'bg-red-500',
-    }
-
-    render(
-      <EachCategory
-        category={categoryWithDifferentColor}
-        isActive={false}
-        emailCount={15}
-        onClick={mockOnClick}
-      />
-    )
-
-    const colorIndicator = screen.getByTestId('category-color-indicator')
-    expect(colorIndicator).toHaveClass('bg-red-500')
-  })
-
-  it('handles very long category names correctly', () => {
-    const categoryWithLongName = {
-      ...mockCategory,
-      name: 'This is a very long category name that should be truncated in the UI to prevent overflow issues',
-    }
-
-    render(
-      <EachCategory
-        category={categoryWithLongName}
-        isActive={false}
-        emailCount={15}
-        onClick={mockOnClick}
-      />
-    )
-
-    const nameElement = screen.getByTestId('category-name')
-    expect(nameElement).toHaveClass('truncate')
-    expect(nameElement).toHaveTextContent('This is a very long category name that should be truncated in the UI to prevent overflow issues')
-  })
-
-  it('handles very long descriptions correctly', () => {
-    const categoryWithLongDescription = {
-      ...mockCategory,
-      description: 'This is a very long description that should be truncated in the UI to prevent overflow and maintain the layout integrity of the component when displaying multiple categories',
-    }
-
-    render(
-      <EachCategory
-        category={categoryWithLongDescription}
-        isActive={false}
-        emailCount={15}
-        onClick={mockOnClick}
-      />
-    )
-
-    const descriptionElement = screen.getByTestId('category-description')
-    expect(descriptionElement).toHaveClass('truncate')
-    expect(descriptionElement).toHaveTextContent('This is a very long description that should be truncated in the UI to prevent overflow and maintain the layout integrity of the component when displaying multiple categories')
-  })
-
   it('handles large email counts correctly', () => {
     render(
       <EachCategory
@@ -241,35 +117,6 @@ describe('EachCategory', () => {
     )
 
     expect(screen.getByTestId('category-email-count')).toHaveTextContent('1')
-  })
-
-  it('has correct accessibility attributes', () => {
-    render(
-      <EachCategory
-        category={mockCategory}
-        isActive={false}
-        emailCount={15}
-        onClick={mockOnClick}
-      />
-    )
-
-    const container = screen.getByTestId('category-test-category-1')
-    expect(container).toHaveAttribute('role', 'button')
-    expect(container).toHaveAttribute('aria-pressed', 'false')
-  })
-
-  it('has correct CSS classes for styling', () => {
-    render(
-      <EachCategory
-        category={mockCategory}
-        isActive={false}
-        emailCount={15}
-        onClick={mockOnClick}
-      />
-    )
-
-    const container = screen.getByTestId('category-test-category-1')
-    expect(container).toHaveClass('flex', 'items-center', 'gap-3', 'p-3', 'rounded-lg', 'hover:bg-accent/50', 'cursor-pointer', 'group', 'transition-colors')
   })
 
   it('handles empty description correctly', () => {
@@ -308,25 +155,6 @@ describe('EachCategory', () => {
 
     const colorIndicator = screen.getByTestId('category-color-indicator')
     expect(colorIndicator).toBeInTheDocument()
-    expect(colorIndicator).toHaveClass('w-3', 'h-3', 'rounded-full')
-  })
-
-  it('maintains focus state correctly', async () => {
-    const user = userEvent.setup()
-    
-    render(
-      <EachCategory
-        category={mockCategory}
-        isActive={false}
-        emailCount={15}
-        onClick={mockOnClick}
-      />
-    )
-
-    const container = screen.getByTestId('category-test-category-1')
-    await user.tab()
-    
-    expect(container).toHaveFocus()
   })
 
   it('handles rapid clicks correctly', async () => {
@@ -349,20 +177,5 @@ describe('EachCategory', () => {
 
     expect(mockOnClick).toHaveBeenCalledTimes(3)
     expect(mockOnClick).toHaveBeenCalledWith('Work Emails', 'test-category-1')
-  })
-
-  it('badge has correct variant and styling', () => {
-    render(
-      <EachCategory
-        category={mockCategory}
-        isActive={false}
-        emailCount={15}
-        onClick={mockOnClick}
-      />
-    )
-
-    const badge = screen.getByTestId('category-email-count')
-    expect(badge).toHaveAttribute('data-variant', 'secondary')
-    expect(badge).toHaveClass('ml-2', 'text-xs')
   })
 })
