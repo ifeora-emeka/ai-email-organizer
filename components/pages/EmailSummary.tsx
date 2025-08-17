@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Badge } from '../ui/badge'
 import { Separator } from '../ui/separator'
 import { ArrowLeft, Calendar, Mail, Paperclip, Star, Archive, Trash2, ExternalLink } from 'lucide-react'
+import { useUnsubscribe, useUnsubscribeStatus } from '@/lib/hooks/use-unsubscribe'
 
 interface EmailSummaryProps {
   email: {
@@ -27,6 +28,9 @@ interface EmailSummaryProps {
 }
 
 export default function EmailSummary({ email, onBack }: EmailSummaryProps) {
+  const { unsubscribe } = useUnsubscribe();
+  const { data: unsubscribeStatus } = useUnsubscribeStatus(email.id);
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('en-US', {
@@ -45,6 +49,16 @@ export default function EmailSummary({ email, onBack }: EmailSummaryProps) {
     return 'bg-red-500'
   }
 
+  const handleUnsubscribe = async () => {
+    if (email.unsubscribeLink) {
+      try {
+        await unsubscribe.mutateAsync({ emailId: email.id });
+      } catch (error) {
+        console.error('Failed to unsubscribe:', error);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -54,8 +68,8 @@ export default function EmailSummary({ email, onBack }: EmailSummaryProps) {
         </Button>
         <div className="flex items-center gap-2">
           <Badge variant="outline">{email.category}</Badge>
-          <Badge 
-            variant="secondary" 
+          <Badge
+            variant="secondary"
             className={`text-white ${getConfidenceColor(email.aiConfidence)}`}
           >
             {Math.round(email.aiConfidence * 100)}% confidence
@@ -116,9 +130,14 @@ export default function EmailSummary({ email, onBack }: EmailSummaryProps) {
               <div className="mt-4 p-3 bg-accent rounded-lg">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Unsubscribe Link Found</span>
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUnsubscribe}
+                    disabled={unsubscribe.isPending}
+                  >
                     <ExternalLink className="h-4 w-4 mr-2" />
-                    Unsubscribe
+                    {unsubscribe.isPending ? 'Unsubscribing...' : 'Unsubscribe'}
                   </Button>
                 </div>
               </div>
@@ -140,9 +159,14 @@ export default function EmailSummary({ email, onBack }: EmailSummaryProps) {
               Delete Email
             </Button>
             {email.unsubscribeLink && (
-              <Button variant="outline" className="w-full justify-start">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={handleUnsubscribe}
+                disabled={unsubscribe.isPending}
+              >
                 <ExternalLink className="h-4 w-4 mr-2" />
-                Auto Unsubscribe
+                {unsubscribe.isPending ? 'Unsubscribing...' : 'Auto Unsubscribe'}
               </Button>
             )}
             <Button variant="outline" className="w-full justify-start">
@@ -152,6 +176,32 @@ export default function EmailSummary({ email, onBack }: EmailSummaryProps) {
           </CardContent>
         </Card>
       </div>
+
+      {unsubscribeStatus?.data && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Unsubscribe Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <span>Status:</span>
+              <Badge variant={unsubscribeStatus.data.status === 'completed' ? 'default' : 'secondary'}>
+                {unsubscribeStatus.data.status}
+              </Badge>
+            </div>
+            {unsubscribeStatus.data.successMessage && (
+              <p className="text-sm text-muted-foreground mt-2">
+                {unsubscribeStatus.data.successMessage}
+              </p>
+            )}
+            {unsubscribeStatus.data.errorMessage && (
+              <p className="text-sm text-destructive mt-2">
+                Error: {unsubscribeStatus.data.errorMessage}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

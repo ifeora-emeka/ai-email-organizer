@@ -45,4 +45,25 @@ router.delete(
   EmailsController.deleteEmail
 )
 
+// Unsubscribe routes
+router.post(
+  '/bulk-unsubscribe',
+  EmailsController.bulkUnsubscribe
+)
+
+router.post(
+  '/:emailId/unsubscribe',
+  EmailsController.unsubscribeFromEmail
+)
+
+router.get(
+  '/:emailId/unsubscribe-status',
+  EmailsController.getUnsubscribeStatus
+)
+
+router.post(
+  '/retry-failed-unsubscribes',
+  EmailsController.retryFailedUnsubscribes
+)
+
 export { router as emailsRouter }

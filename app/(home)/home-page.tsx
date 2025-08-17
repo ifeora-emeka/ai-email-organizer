@@ -14,15 +14,22 @@ import {
     SparkleIcon,
 } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
-import { useEmails, type Email, useBulkUpdateEmails, useDeleteEmail, useBulkDeleteEmails } from "@/lib/hooks/use-emails";
+import {
+    useEmails,
+    type Email,
+    useBulkUpdateEmails,
+    useDeleteEmail,
+    useBulkDeleteEmails,
+} from "@/lib/hooks/use-emails";
+import { useUnsubscribe } from "@/lib/hooks/use-unsubscribe";
 import {
     useGmailAccounts,
     useStartPolling,
     type GmailAccount,
 } from "@/lib/hooks";
 import EmailListSkeleton from "@/components/EmailListSkeleton";
-import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/query-keys';
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -33,6 +40,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 export default function HomePage() {
     const { data: session } = useSession();
@@ -44,23 +52,30 @@ export default function HomePage() {
 
     const queryClient = useQueryClient();
 
-    const { data: emailsResponse, isLoading: emailsLoading } = useEmails({
-        categoryId: activeCategoryId || undefined,
-        limit: 50,
-        sortBy: "receivedAt",
-        sortOrder: "desc",
-    });
+    const { data: emailsResponse, isLoading: emailsLoading } = useEmails(
+        {
+            categoryId: activeCategoryId || undefined,
+            limit: 50,
+            sortBy: "receivedAt",
+            sortOrder: "desc",
+        },
+        {
+            polling: true,
+            pollingInterval: 10000,
+        }
+    );
 
     const { data: gmailAccountsData } = useGmailAccounts();
     const startPolling = useStartPolling();
     const bulkUpdateEmails = useBulkUpdateEmails();
     const deleteEmail = useDeleteEmail();
     const bulkDeleteEmails = useBulkDeleteEmails();
+    const { bulkUnsubscribe } = useUnsubscribe();
 
-    const emails = Array.isArray(emailsResponse) 
-        ? emailsResponse 
+    const emails = Array.isArray(emailsResponse)
+        ? emailsResponse
         : emailsResponse?.data || [];
-    
+
     const gmailAccounts: GmailAccount[] =
         (gmailAccountsData as GmailAccount[]) || [];
 
@@ -95,9 +110,9 @@ export default function HomePage() {
 
     const handleEmailSelect = (emailId: string, isSelected: boolean) => {
         if (isSelected) {
-            setSelectedEmailIds(prev => [...prev, emailId]);
+            setSelectedEmailIds((prev) => [...prev, emailId]);
         } else {
-            setSelectedEmailIds(prev => prev.filter(id => id !== emailId));
+            setSelectedEmailIds((prev) => prev.filter((id) => id !== emailId));
         }
     };
 
@@ -105,7 +120,7 @@ export default function HomePage() {
         if (selectedEmailIds.length === emails.length) {
             setSelectedEmailIds([]);
         } else {
-            setSelectedEmailIds(emails.map(email => email.id));
+            setSelectedEmailIds(emails.map((email) => email.id));
         }
     };
 
@@ -116,29 +131,46 @@ export default function HomePage() {
     const confirmBulkDelete = async () => {
         try {
             await bulkDeleteEmails.mutateAsync({ emailIds: selectedEmailIds });
-            
+
             queryClient.invalidateQueries({ queryKey: queryKeys.emails.all });
-            queryClient.invalidateQueries({ queryKey: queryKeys.emails.list() });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.emails.list(),
+            });
             if (activeCategoryId) {
-                queryClient.invalidateQueries({ 
-                    queryKey: queryKeys.emails.byCategory(activeCategoryId) 
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.emails.byCategory(activeCategoryId),
                 });
             }
-            
-            queryClient.invalidateQueries({ queryKey: queryKeys.auth.dependencies });
-            
+
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.auth.dependencies,
+            });
+
             setSelectedEmailIds([]);
             setShowDeleteConfirm(false);
         } catch (error) {
-            console.error('Failed to delete emails:', error);
+            console.error("Failed to delete emails:", error);
             setShowDeleteConfirm(false);
         }
     };
 
     const handleBulkUnsubscribe = async () => {
-        // TODO: Implement unsubscribe functionality
-        console.log('Unsubscribe from emails:', selectedEmailIds);
-        setSelectedEmailIds([]);
+        try {
+            toast.info("Unsubscribing from emails...", {
+                duration: 5000,
+                position: "top-right",
+            });
+            await bulkUnsubscribe.mutate({ emailIds: selectedEmailIds });
+            setSelectedEmailIds([]);
+        } catch (error) {
+            console.error("Failed to unsubscribe from emails:", error);
+            toast.error("Failed to unsubscribe from emails", {
+                description:
+                    error instanceof Error ? error.message : "Unknown error",
+                duration: 5000,
+                position: "top-right",
+            });
+        }
     };
 
     const formatTimeAgo = (dateString: string) => {
@@ -233,21 +265,16 @@ export default function HomePage() {
                             >
                                 {selectedEmail.priority} priority
                             </Badge>
-                            <Badge
-                                variant='secondary'
-                                className='text-xs'
-                            >
+                            <Badge variant='secondary' className='text-xs'>
                                 AI Confidence:{" "}
-                                {Math.round(
-                                    selectedEmail.aiConfidence * 100
-                                )}
-                                %
+                                {Math.round(selectedEmail.aiConfidence * 100)}%
                             </Badge>
                         </div>
 
                         <div className='bg-primary/5 border border-primary/20 rounded-lg p-4 mb-6'>
                             <h3 className='text-sm font-medium text-primary mb-2 flex items-center'>
-                                <SparkleIcon className="h-4 w-4 mr-2" /> AI Summary
+                                <SparkleIcon className='h-4 w-4 mr-2' /> AI
+                                Summary
                             </h3>
                             <p className='text-sm text-primary/80'>
                                 {selectedEmail.aiSummary}
@@ -359,14 +386,21 @@ export default function HomePage() {
                                     <div className='flex items-center justify-between'>
                                         <div className='flex items-center gap-4'>
                                             <span className='text-sm font-medium'>
-                                                {selectedEmailIds.length} email{selectedEmailIds.length > 1 ? 's' : ''} selected
+                                                {selectedEmailIds.length} email
+                                                {selectedEmailIds.length > 1
+                                                    ? "s"
+                                                    : ""}{" "}
+                                                selected
                                             </span>
                                             <Button
                                                 variant='outline'
                                                 size='sm'
                                                 onClick={handleSelectAll}
                                             >
-                                                {selectedEmailIds.length === emails.length ? 'Deselect All' : 'Select All'}
+                                                {selectedEmailIds.length ===
+                                                emails.length
+                                                    ? "Deselect All"
+                                                    : "Select All"}
                                             </Button>
                                         </div>
                                         <div className='flex items-center gap-2'>
@@ -410,17 +444,26 @@ export default function HomePage() {
                                         <div className='flex items-start gap-4'>
                                             <div className='flex items-center pt-1'>
                                                 <Checkbox
-                                                    checked={selectedEmailIds.includes(email.id)}
-                                                    onCheckedChange={(checked) => 
-                                                        handleEmailSelect(email.id, checked as boolean)
+                                                    checked={selectedEmailIds.includes(
+                                                        email.id
+                                                    )}
+                                                    onCheckedChange={(
+                                                        checked
+                                                    ) =>
+                                                        handleEmailSelect(
+                                                            email.id,
+                                                            checked as boolean
+                                                        )
                                                     }
                                                     className='h-4 w-4'
                                                 />
                                             </div>
-                                            
-                                            <div 
+
+                                            <div
                                                 className='flex-1 min-w-0 cursor-pointer'
-                                                onClick={() => handleEmailClick(email)}
+                                                onClick={() =>
+                                                    handleEmailClick(email)
+                                                }
                                             >
                                                 <div className='flex items-center gap-2 mb-2'>
                                                     <span
@@ -460,7 +503,9 @@ export default function HomePage() {
                                                     {email.hasAttachments && (
                                                         <div className='flex items-center gap-1'>
                                                             <Paperclip className='h-3 w-3' />
-                                                            <span>Attachment</span>
+                                                            <span>
+                                                                Attachment
+                                                            </span>
                                                         </div>
                                                     )}
                                                     <div className='flex items-center gap-1'>
@@ -489,26 +534,37 @@ export default function HomePage() {
                     )}
                 </div>
             </div>
-            
-            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+
+            <AlertDialog
+                open={showDeleteConfirm}
+                onOpenChange={setShowDeleteConfirm}
+            >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Selected Emails</AlertDialogTitle>
+                        <AlertDialogTitle>
+                            Delete Selected Emails
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to delete {selectedEmailIds.length} email{selectedEmailIds.length > 1 ? 's' : ''}? 
-                            This action cannot be undone.
+                            Are you sure you want to delete{" "}
+                            {selectedEmailIds.length} email
+                            {selectedEmailIds.length > 1 ? "s" : ""}? This
+                            action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={bulkDeleteEmails.isPending}>
-                            Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction 
-                            onClick={confirmBulkDelete}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        <AlertDialogCancel
                             disabled={bulkDeleteEmails.isPending}
                         >
-                            {bulkDeleteEmails.isPending ? 'Deleting...' : 'Delete'}
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmBulkDelete}
+                            className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                            disabled={bulkDeleteEmails.isPending}
+                        >
+                            {bulkDeleteEmails.isPending
+                                ? "Deleting..."
+                                : "Delete"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
