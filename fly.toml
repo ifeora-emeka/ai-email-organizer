@@ -6,7 +6,6 @@ primary_region = "ord"
 [env]
   NODE_ENV = "production"
   PORT = "8080"
-  DATABASE_URL = "file:/data/prod.db"
 
 [[mounts]]
   source = "ai_email_organizer_data"
