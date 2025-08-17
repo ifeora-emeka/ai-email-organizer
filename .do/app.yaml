@@ -1,16 +1,15 @@
-name: ai-email-organizer-frontend
+name: ai-email-organizer
 services:
 - name: frontend
   source_dir: /
   github:
-    repo: ifeora-emeka/ai-email-organizer
+    repo: your-username/ai-email-organizer
     branch: main
-  build_command: npm install -f && npm run db:generate && npm run build:frontend
-  run_command: npm run start:frontend
+  run_command: npm start
   environment_slug: node-js
   instance_count: 1
   instance_size_slug: basic-xxs
-  http_port: 3000
+  build_command: npm install --legacy-peer-deps && npm run build:frontend
   envs:
   - key: NODE_ENV
     value: production
@@ -18,18 +17,9 @@ services:
     value: ${APP_URL}
   - key: NEXTAUTH_SECRET
     value: ${NEXTAUTH_SECRET}
-    type: SECRET
   - key: GOOGLE_CLIENT_ID
     value: ${GOOGLE_CLIENT_ID}
-    type: SECRET
   - key: GOOGLE_CLIENT_SECRET
     value: ${GOOGLE_CLIENT_SECRET}
-    type: SECRET
-  - key: NEXT_PUBLIC_API_URL
-    value: ${NEXT_PUBLIC_API_URL}
-  - key: DATABASE_URL
-    value: ${DATABASE_URL}
-    type: SECRET
   - key: OPENAI_API_KEY
     value: ${OPENAI_API_KEY}
-    type: SECRET
