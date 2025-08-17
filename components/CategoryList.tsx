@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Button } from './ui/button'
-import { Plus, FolderOpen, Mail, Check, ChevronDown } from 'lucide-react'
-import { Badge } from './ui/badge'
+import { Plus, FolderOpen, Check, ChevronDown } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -27,6 +26,7 @@ import { useAppContext } from '@/context/AppContext'
 import { useCreateCategory } from '@/lib/hooks'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/query-keys'
+import EachCategory from './EachCategory'
 import { cn } from '@/lib/utils'
 
 const categoryColors = [
@@ -254,27 +254,13 @@ export default function CategoryList() {
       <div className="flex-1 overflow-y-auto">
         <div className="p-2">
           {state.categories.map((category) => (
-            <div
+            <EachCategory
               key={category.id}
-              className={`flex items-center gap-3 p-3 rounded-lg hover:bg-accent/50 cursor-pointer group transition-colors ${state.activeCategory === category.name ? 'bg-accent border border-primary/20' : ''
-                }`}
-              onClick={() => handleCategoryClick(category.name, category.id)}
-            >
-              <div className={`w-3 h-3 rounded-full ${category.color}`} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-foreground truncate">{category.name}</h3>
-                  {Number(getCategoryEmailCount(category.name)) > 0 && (
-                    <Badge variant="secondary" className="ml-2 text-xs">
-                      {getCategoryEmailCount(category.name)}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground truncate mt-1">
-                  {category.description}
-                </p>
-              </div>
-            </div>
+              category={category}
+              isActive={state.activeCategory === category.name}
+              emailCount={getCategoryEmailCount(category.name)}
+              onClick={handleCategoryClick}
+            />
           ))}
         </div>
 

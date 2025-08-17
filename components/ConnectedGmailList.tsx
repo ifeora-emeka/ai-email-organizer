@@ -2,21 +2,14 @@
 
 import React from "react";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Avatar, AvatarFallback } from "./ui/avatar";
-import {
-    Plus,
-    Mail,
-    AlertCircle,
-    Clock,
-    Loader2,
-} from "lucide-react";
+import { Mail, Plus, Loader2 } from "lucide-react";
 import { useApiMutation } from "@/lib/hooks";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAppContext } from "@/context/AppContext";
 import { GmailAccount } from "@/lib/hooks/use-auth";
+import EachGmailAccount from "./EachGmailAccount";
 
 export default function ConnectedGmailList() {
     const { state, updateState } = useAppContext();
@@ -112,37 +105,12 @@ export default function ConnectedGmailList() {
             <div className='flex-1 overflow-y-auto'>
                 <div className='p-2 space-y-2'>
                     {state.gmailAccounts?.map((account: GmailAccount) => (
-                        <div
+                        <EachGmailAccount
                             key={account.id}
-                            className='flex items-center justify-between p-3 bg-accent/30 rounded-lg hover:bg-accent/50 transition-colors'
-                        >
-                            <div className='flex items-center gap-3 flex-1 min-w-0'>
-                                <Avatar className="h-8 w-8">
-                                    <AvatarFallback className="text-xs font-medium">
-                                        {getInitials(account.name || '', account.email)}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className='flex-1 min-w-0'>
-                                    <div className='flex items-center gap-2'>
-                                        <p className='font-medium text-foreground truncate text-sm'>
-                                            {account.name}
-                                        </p>
-                                    </div>
-                                    <p className='text-xs text-muted-foreground truncate'>
-                                        {account.email}
-                                    </p>
-                                    <div className='flex items-center gap-3 mt-1'>
-                                        <span className='text-xs text-muted-foreground flex items-center gap-1'>
-                                            <Mail className='h-3 w-3' />
-                                            {account.emailCount}
-                                        </span>
-                                        <span className='text-xs text-muted-foreground'>
-                                            {formatLastSync(account.lastSync)}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                            account={account}
+                            getInitials={getInitials}
+                            formatLastSync={formatLastSync}
+                        />
                     ))}
 
                     {(!state.gmailAccounts || state.gmailAccounts.length === 0) && (

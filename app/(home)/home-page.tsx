@@ -4,15 +4,13 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
     Clock,
     Paperclip,
     ArrowLeft,
+    SparkleIcon,
     Trash2,
     UserX,
-    SparkleIcon,
-    UserIcon,
 } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import {
@@ -29,6 +27,7 @@ import {
     type GmailAccount,
 } from "@/lib/hooks";
 import EmailListSkeleton from "@/components/EmailListSkeleton";
+import EachEmail from "@/components/EachEmail";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -50,6 +49,7 @@ export default function HomePage() {
     const [selectedEmailIds, setSelectedEmailIds] = useState<string[]>([]);
     const [pollingStarted, setPollingStarted] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showSingleDeleteConfirm, setShowSingleDeleteConfirm] = useState(false);
 
     const queryClient = useQueryClient();
 
@@ -68,8 +68,6 @@ export default function HomePage() {
 
     const { data: gmailAccountsData } = useGmailAccounts();
     const startPolling = useStartPolling();
-    const bulkUpdateEmails = useBulkUpdateEmails();
-    const deleteEmail = useDeleteEmail();
     const bulkDeleteEmails = useBulkDeleteEmails();
     const { bulkUnsubscribe } = useUnsubscribe();
 
@@ -246,11 +244,7 @@ export default function HomePage() {
                                     )}
                                 </div>
                             </div>
-                            <div className='flex items-center gap-2'>
-                                <Button variant='ghost' size='sm'>
-                                    <Trash2 className='h-4 w-4' />
-                                </Button>
-                            </div>
+                            
                         </div>
 
                         <div className='flex items-center gap-2 mb-6'>
@@ -380,7 +374,6 @@ export default function HomePage() {
                         </div>
                     ) : (
                         <div className='relative'>
-                            {/* Floating Action Bar */}
                             {selectedEmailIds.length > 0 && (
                                 <div className='sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 p-4'>
                                     <div className='flex items-center justify-between'>
@@ -429,106 +422,14 @@ export default function HomePage() {
 
                             <div className='divide-y divide-border/50'>
                                 {emails?.map((email) => (
-                                    <div
+                                    <EachEmail
                                         key={email.id}
-                                        className={`p-4 hover:bg-accent/50 transition-colors ${!email.isRead
-                                                ? "bg-primary/5 border-l-2 border-l-primary"
-                                                : ""
-                                            } ${selectedEmailIds.includes(email.id)
-                                                ? "bg-primary/10"
-                                                : ""
-                                            }`}
-                                    >
-                                        <div className='flex items-start gap-4'>
-                                            <div className='flex items-center pt-1'>
-                                                <Checkbox
-                                                    checked={selectedEmailIds.includes(
-                                                        email.id
-                                                    )}
-                                                    onCheckedChange={(
-                                                        checked
-                                                    ) =>
-                                                        handleEmailSelect(
-                                                            email.id,
-                                                            checked as boolean
-                                                        )
-                                                    }
-                                                    className='h-4 w-4'
-                                                />
-                                            </div>
-
-                                            <div
-                                                className='flex-1 min-w-0 cursor-pointer'
-                                                onClick={() =>
-                                                    handleEmailClick(email)
-                                                }
-                                            >
-                                                <div className='flex items-center gap-2 mb-2'>
-                                                    <span
-                                                        className={`font-medium text-foreground text-sm ${!email.isRead
-                                                                ? "font-semibold"
-                                                                : ""
-                                                            }`}
-                                                    >
-                                                        {email.fromName}
-                                                    </span>
-                                                </div>
-
-                                                <h3
-                                                    className={`text-sm text-foreground mb-2 ${!email.isRead
-                                                            ? "font-semibold"
-                                                            : ""
-                                                        }`}
-                                                >
-                                                    {email.subject}
-                                                </h3>
-
-                                                <p className='text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-3'>
-                                                    {email.aiSummary}
-                                                </p>
-
-                                                <div className='flex items-center justify-between gap-4 text-xs text-muted-foreground'>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className='flex items-center gap-1'>
-                                                            <Clock className='h-3 w-3' />
-                                                            <span>
-                                                                {formatTimeAgo(
-                                                                    email.receivedAt
-                                                                )}
-                                                            </span>
-                                                        </div>
-                                                        {email.hasAttachments && (
-                                                            <div className='flex items-center gap-1'>
-                                                                <Paperclip className='h-3 w-3' />
-                                                                <span>
-                                                                    Attachment
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        <div className='flex items-center gap-1'>
-                                                            <span>
-                                                                AI:{" "}
-                                                                {Math.round(
-                                                                    email.aiConfidence *
-                                                                    100
-                                                                )}
-                                                                %
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <span className='text-xs text-muted-foreground flex gap-2 items-center'>
-                                                        <UserIcon className='h-5 w-5' /> {email.gmailAccount?.name || email.gmailAccount?.email}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className='flex items-center gap-2'>
-                                                {!email.isRead && (
-                                                    <div className='w-2 h-2 bg-primary rounded-full'></div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
+                                        email={email}
+                                        isSelected={selectedEmailIds.includes(email.id)}
+                                        onSelect={handleEmailSelect}
+                                        onClick={handleEmailClick}
+                                        formatTimeAgo={formatTimeAgo}
+                                    />
                                 ))}
                             </div>
                         </div>
