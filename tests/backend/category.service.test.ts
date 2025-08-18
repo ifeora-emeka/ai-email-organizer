@@ -1,4 +1,4 @@
-import { CategoryService, CreateCategoryData } from '../../lib/services/category.service'
+import { CategoryService, CreateCategoryData, CategoryWithCount, CategoryWithEmails } from '../../lib/services/category.service'
 import { testUser, testCategory, testEmail } from './setup'
 import { prisma } from '../../lib/prisma'
 
@@ -59,7 +59,7 @@ describe('CategoryService', () => {
 
   describe('getCategoriesByUserId', () => {
     it('should return categories for a specific user', async () => {
-      const mockCategories = [
+      const mockCategories: CategoryWithCount[] = [
         { ...testCategory, _count: { emails: 5 } },
         { ...testCategory, id: 'category-2', name: 'Work', _count: { emails: 10 } }
       ]
@@ -110,7 +110,7 @@ describe('CategoryService', () => {
 
   describe('getCategoryById', () => {
     it('should return category by ID with email count', async () => {
-      const mockCategory = {
+      const mockCategory: CategoryWithCount = {
         ...testCategory,
         _count: { emails: 3 }
       }
@@ -242,7 +242,7 @@ describe('CategoryService', () => {
         }
       ]
 
-      const mockCategoryWithEmails = {
+      const mockCategoryWithEmails: CategoryWithEmails = {
         ...testCategory,
         emails: mockEmails,
         _count: { emails: 1 }
@@ -280,7 +280,7 @@ describe('CategoryService', () => {
     })
 
     it('should use default pagination parameters', async () => {
-      const mockCategoryWithEmails = {
+      const mockCategoryWithEmails: CategoryWithEmails = {
         ...testCategory,
         emails: [],
         _count: { emails: 0 }
@@ -325,11 +325,13 @@ describe('CategoryService', () => {
       const customLimit = 25
       const customOffset = 50
 
-      mockPrisma.category.findUnique.mockResolvedValue({
+      const mockCategoryWithEmails: CategoryWithEmails = {
         ...testCategory,
         emails: [],
         _count: { emails: 0 }
-      })
+      }
+
+      mockPrisma.category.findUnique.mockResolvedValue(mockCategoryWithEmails)
 
       await CategoryService.getCategoryWithEmails(testCategory.id, customLimit, customOffset)
 

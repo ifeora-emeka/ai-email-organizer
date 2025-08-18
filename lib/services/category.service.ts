@@ -8,6 +8,19 @@ export interface CreateCategoryData {
   color: string
 }
 
+export type CategoryWithCount = Category & {
+  _count: {
+    emails: number
+  }
+}
+
+export type CategoryWithEmails = Category & {
+  emails: Array<any>
+  _count: {
+    emails: number
+  }
+}
+
 export class CategoryService {
   static async createCategory(data: CreateCategoryData): Promise<Category> {
     return await prisma.category.create({
@@ -20,7 +33,7 @@ export class CategoryService {
     })
   }
 
-  static async getCategoriesByUserId(userId: string): Promise<Category[]> {
+  static async getCategoriesByUserId(userId: string): Promise<CategoryWithCount[]> {
     return await prisma.category.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -32,7 +45,7 @@ export class CategoryService {
     })
   }
 
-  static async getCategoryById(id: string): Promise<Category | null> {
+  static async getCategoryById(id: string): Promise<CategoryWithCount | null> {
     return await prisma.category.findUnique({
       where: { id },
       include: {
@@ -59,7 +72,7 @@ export class CategoryService {
     })
   }
 
-  static async getCategoryWithEmails(id: string, limit: number = 50, offset: number = 0) {
+  static async getCategoryWithEmails(id: string, limit: number = 50, offset: number = 0): Promise<CategoryWithEmails | null> {
     return await prisma.category.findUnique({
       where: { id },
       include: {

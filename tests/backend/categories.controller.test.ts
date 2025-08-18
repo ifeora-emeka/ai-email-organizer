@@ -1,6 +1,6 @@
 import { CategoriesController } from '../../server/modules/categories/categories.controller'
 import { CreateCategoryDto, UpdateCategoryDto, CategoryParamsDto, CategoryQueryDto } from '../../server/modules/categories/categories.dto'
-import { CategoryService } from '../../lib/services/category.service'
+import { CategoryService, CategoryWithCount, CategoryWithEmails } from '../../lib/services/category.service'
 import { createMockRequest, createMockResponse, testUser, testCategory } from './setup'
 
 // Mock CategoryService
@@ -20,11 +20,11 @@ describe('CategoriesController', () => {
       })
       const res = createMockResponse()
 
-      const mockCategories = [
+      const mockCategories: CategoryWithCount[] = [
         { ...testCategory, _count: { emails: 5 } }
       ]
 
-      mockCategoryService.getCategoriesByUserId.mockResolvedValue(mockCategories as any)
+      mockCategoryService.getCategoriesByUserId.mockResolvedValue(mockCategories)
 
       await CategoriesController.getCategories(req as any, res as any)
 
@@ -72,8 +72,8 @@ describe('CategoriesController', () => {
       })
       const res = createMockResponse()
 
-      const mockCategory = { ...testCategory, _count: { emails: 3 } }
-      mockCategoryService.getCategoryById.mockResolvedValue(mockCategory as any)
+      const mockCategory: CategoryWithCount = { ...testCategory, _count: { emails: 3 } }
+      mockCategoryService.getCategoryById.mockResolvedValue(mockCategory)
 
       await CategoriesController.getCategoryById(req as any, res as any)
 
@@ -115,13 +115,13 @@ describe('CategoriesController', () => {
         gmailAccount: { email: 'test@gmail.com' }
       }]
 
-      const mockCategory = {
+      const mockCategory: CategoryWithEmails = {
         ...testCategory,
         _count: { emails: 1 },
         emails: mockEmails
       }
 
-      mockCategoryService.getCategoryWithEmails.mockResolvedValue(mockCategory as any)
+      mockCategoryService.getCategoryWithEmails.mockResolvedValue(mockCategory)
 
       await CategoriesController.getCategoryById(req as any, res as any)
 
@@ -172,8 +172,8 @@ describe('CategoriesController', () => {
       })
       const res = createMockResponse()
 
-      const otherUserCategory = { ...testCategory, userId: 'other-user-id' }
-      mockCategoryService.getCategoryById.mockResolvedValue(otherUserCategory as any)
+      const otherUserCategory: CategoryWithCount = { ...testCategory, userId: 'other-user-id', _count: { emails: 0 } }
+      mockCategoryService.getCategoryById.mockResolvedValue(otherUserCategory)
 
       await CategoriesController.getCategoryById(req as any, res as any)
 
@@ -204,7 +204,7 @@ describe('CategoriesController', () => {
         id: 'new-category-id'
       }
 
-      mockCategoryService.createCategory.mockResolvedValue(createdCategory as any)
+      mockCategoryService.createCategory.mockResolvedValue(createdCategory)
 
       await CategoriesController.createCategory(req as any, res as any)
 
@@ -261,8 +261,9 @@ describe('CategoriesController', () => {
 
       const updatedCategory = { ...testCategory, ...updateData }
 
-      mockCategoryService.getCategoryById.mockResolvedValue(testCategory as any)
-      mockCategoryService.updateCategory.mockResolvedValue(updatedCategory as any)
+      const testCategoryWithCount: CategoryWithCount = { ...testCategory, _count: { emails: 0 } }
+      mockCategoryService.getCategoryById.mockResolvedValue(testCategoryWithCount)
+      mockCategoryService.updateCategory.mockResolvedValue(updatedCategory)
 
       await CategoriesController.updateCategory(req as any, res as any)
 
@@ -304,7 +305,8 @@ describe('CategoriesController', () => {
       })
       const res = createMockResponse()
 
-      mockCategoryService.getCategoryById.mockResolvedValue(testCategory as any)
+      const testCategoryWithCount: CategoryWithCount = { ...testCategory, _count: { emails: 0 } }
+      mockCategoryService.getCategoryById.mockResolvedValue(testCategoryWithCount)
       mockCategoryService.deleteCategory.mockResolvedValue(undefined)
 
       await CategoriesController.deleteCategory(req as any, res as any)

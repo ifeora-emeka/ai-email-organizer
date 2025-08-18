@@ -78,7 +78,7 @@ export interface BulkDeleteEmailData
 
 export function useEmails(query: EmailQuery = {}, options: { polling?: boolean; pollingInterval?: number; } = {})
 {
-  const { polling = false, pollingInterval = 5000 } = options;
+  const { polling = true, pollingInterval = 5000 } = options;
 
   const queryParams = new URLSearchParams();
 
