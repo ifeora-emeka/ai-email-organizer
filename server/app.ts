@@ -23,21 +23,22 @@ export const createApp = async () =>
 
   server.set('trust proxy', 1);
 
-  if (process.env.NODE_ENV === 'development') {
-    server.use(cors({
-      origin: true, 
-      credentials: true,
-      methods: [ 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ],
-      allowedHeaders: [ 'Content-Type', 'Authorization', 'Cookie', 'X-User-Email', 'Origin', 'Accept' ],
-    }));
-  } else {
-    server.use(cors({
-      origin: [ process.env.FRONTEND_URL || 'https://your-domain.com' ],
-      credentials: true,
-      methods: [ 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ],
-      allowedHeaders: [ 'Content-Type', 'Authorization', 'Cookie', 'X-User-Email', 'Origin', 'Accept' ],
-    }));
-  }
+  // if (process.env.NODE_ENV === 'development') {
+  //   server.use(cors({
+  //     origin: true, 
+  //     credentials: true,
+  //     methods: [ 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ],
+  //     allowedHeaders: [ 'Content-Type', 'Authorization', 'Cookie', 'X-User-Email', 'Origin', 'Accept' ],
+  //   }));
+  // } else {
+  //   server.use(cors({
+  //     // origin: [ process.env.FRONTEND_URL || 'https://your-domain.com' ],
+  //     origin: true,
+  //     credentials: true,
+  //     methods: [ 'GET', 'POST', 'PUT', 'DELETE', 'OPTIONS' ],
+  //     allowedHeaders: [ 'Content-Type', 'Authorization', 'Cookie', 'X-User-Email', 'Origin', 'Accept' ],
+  //   }));
+  // }
 
   server.use('/api/v1', limiter);
 
