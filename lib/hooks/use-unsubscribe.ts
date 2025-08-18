@@ -48,22 +48,18 @@ export const useUnsubscribe = () =>
 
             const { success = 0, failed = 0, results = [], message } = data;
 
-            // Handle different scenarios
             if (success > 0 && failed === 0) {
-                // All successful
                 toast.success(`Successfully unsubscribed from ${success} email${success > 1 ? 's' : ''}`, {
                     duration: 5000,
                     position: 'top-right',
                 });
             } else if (success > 0 && failed > 0) {
-                // Partial success
                 toast.success(`Unsubscribed from ${success} email${success > 1 ? 's' : ''}`, {
                     description: `${failed} email${failed > 1 ? 's' : ''} failed to unsubscribe`,
                     duration: 7000,
                     position: 'top-right',
                 });
             } else if (success === 0 && failed > 0) {
-                // All failed
                 const failureReasons = results
                     ?.filter((result: any) => !result.success)
                     ?.map((result: any) => result.message || 'Unknown error')

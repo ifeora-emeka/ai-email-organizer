@@ -96,16 +96,7 @@ export class GmailController
             return res.status(400).json({ error: 'Invalid state parameter format' });
         }
 
-        console.log("This is the stateData", stateData);
-        console.log("This is the metadata",);
 
-        // // Verify CSRF token
-        // // @ts-ignore
-        // if (!stateData.csrf ) {
-        //   return res.status(400).json({ error: 'Invalid state parameter' });
-        // }
-
-        // Check state timestamp to prevent replay attacks
         const stateAge = Date.now() - (stateData.timestamp || 0);
         const maxAge = 10 * 60 * 1000; // 10 minutes
         if (stateAge > maxAge) {
