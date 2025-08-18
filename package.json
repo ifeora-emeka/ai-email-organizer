@@ -6,7 +6,7 @@
     "dev": "next dev",
     "server:dev": "cross-env NODE_ENV=development tsup --watch --onSuccess=\"node dist/server.js\"",
     "build": "next build && npm run build:server",
-    "build:server": "tsup",
+    "build:server": "npx tsup",
     "build:frontend": "next build",
     "start": "node dist/server.js",
     "start:frontend": "next start",
