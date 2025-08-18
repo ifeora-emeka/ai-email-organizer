@@ -8,7 +8,7 @@ import { GmailPollingService } from '../../../lib/services/gmail-pubsub.service'
 const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
+    process.env.GOOGLE_REDIRECT_URI || 'https://ai-email-organizer-1.onrender.com/api/v1/gmail-accounts/callback'
 );
 
 const scopes = [
@@ -56,7 +56,7 @@ export class GmailController
             scope: scopes,
             state,
             prompt: 'consent',
-            redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:8080/api/v1/gmail-accounts/callback'
+            redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'https://ai-email-organizer-1.onrender.com/api/v1/gmail-accounts/callback'
         });
 
 
@@ -117,7 +117,7 @@ export class GmailController
 
             const tokenResponse = await oauth2Client.getToken({
                 code: code as string,
-                redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:8080/api/v1/gmail-accounts/callback'
+                redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'https://ai-email-organizer-1.onrender.com/api/v1/gmail-accounts/callback'
             });
 
             tokens = tokenResponse.tokens;
