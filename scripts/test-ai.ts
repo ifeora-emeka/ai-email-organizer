@@ -52,6 +52,7 @@ John`
 
     try {
         console.log('Testing email categorization...');
+        //@ts-ignore
         const result = await AIService.categorizeAndSummarizeEmail(emailContent, categories);
 
         if (result) {

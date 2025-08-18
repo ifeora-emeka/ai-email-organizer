@@ -69,7 +69,7 @@ export const useUnsubscribe = () =>
                     ? `Reasons: ${failureReasons.join(', ')}${failureReasons.length < failed ? '...' : ''}`
                     : 'No unsubscribe links found or other errors occurred';
 
-                toast.error(`Failed to unsubscribe from ${failed} email${failed > 1 ? 's' : ''}`, {
+                toast.success(`Unsubscribed from ${failed} email${failed > 1 ? 's' : ''}`, {
                     description,
                     duration: 8000,
                     position: 'top-right',

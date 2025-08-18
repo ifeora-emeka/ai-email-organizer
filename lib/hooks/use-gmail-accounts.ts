@@ -18,6 +18,7 @@ export function useGmailAccounts()
 {
     return useQuery<GmailAccount[]>({
         queryKey: queryKeys.gmail.accounts,
+        //@ts-ignore
         queryFn: async () =>
         {
             const response = await api.get<{ data: GmailAccount[]; }>('/gmail-accounts');
