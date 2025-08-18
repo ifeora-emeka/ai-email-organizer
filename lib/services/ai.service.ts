@@ -82,7 +82,7 @@ Consider:
                 subject: emailContent.subject || 'No subject',
                 fromName: emailContent.fromName || emailContent.fromEmail,
                 fromEmail: emailContent.fromEmail,
-                content: textContent,
+                content: emailContent,
                 format_instructions: parser.getFormatInstructions()
             });
 
@@ -132,42 +132,86 @@ Consider:
         }
 
         if (emailContent.htmlBody) {
-            // Basic HTML to text conversion
-            const textContent = emailContent.htmlBody
-                .replace(/<[^>]*>/g, ' ') // Remove HTML tags
+            // Enhanced HTML to text conversion
+            let htmlContent = emailContent.htmlBody;
+
+            // Extract href attributes from links (important for unsubscribe links)
+            const linkMatches = htmlContent.match(/<a[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([^<]+)<\/a>/gi);
+            if (linkMatches) {
+                linkMatches.forEach(match =>
+                {
+                    const hrefMatch = match.match(/href\s*=\s*["']([^"']+)["']/i);
+                    const textMatch = match.match(/>([^<]+)</i);
+                    if (hrefMatch && textMatch) {
+                        content += ` [LINK: ${textMatch[ 1 ].trim()} -> ${hrefMatch[ 1 ]}] `;
+                    }
+                });
+            }
+
+            // Remove HTML tags but preserve link information
+            const textContent = htmlContent
+                .replace(/<a[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([^<]+)<\/a>/gi, '$2 ($1)') // Convert links to text with URL
+                .replace(/<[^>]*>/g, ' ') // Remove remaining HTML tags
+                .replace(/&nbsp;/g, ' ') // Replace HTML entities
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
                 .replace(/\s+/g, ' ') // Normalize whitespace
                 .trim();
+
             content += ' ' + textContent;
         }
 
-        return content.substring(0, 4000); // Limit content length for AI processing
+        return content.substring(0, 6000); // Increased limit for better link detection
     }
 
     static async extractUnsubscribeLink(emailContent: EmailContent): Promise<string | undefined>
     {
         try {
+            // First try regex-based extraction for common patterns
+            const regexLink = this.extractUnsubscribeLinkWithRegex(emailContent);
+            if (regexLink) {
+                console.log('🔗 Found unsubscribe link via regex:', regexLink);
+                return regexLink;
+            }
+
+            // If regex fails, use AI as fallback
             const textContent = this.extractTextContent(emailContent);
 
             // Define the output schema for unsubscribe link extraction
             const unsubscribeSchema = z.object({
-                unsubscribeLink: z.string().url().nullable().describe("The unsubscribe URL if found, otherwise null")
+                unsubscribeLink: z.string().url().nullable().describe("The unsubscribe URL if found, otherwise null"),
+                confidence: z.number().min(0).max(1).describe("Confidence in the extracted link (0-1)"),
+                reasoning: z.string().describe("Brief explanation of why this link was selected")
             });
 
             const parser = StructuredOutputParser.fromZodSchema(unsubscribeSchema);
 
             const prompt = PromptTemplate.fromTemplate(`
-Extract any unsubscribe link from the following email content. Look for patterns like:
-- "unsubscribe" followed by a URL
-- "opt-out" followed by a URL
-- "click here to unsubscribe" with a link
-- "manage preferences" with a link
+You are an expert at finding unsubscribe links in emails. Extract any unsubscribe link from the following email content.
+
+Look for these patterns and variations:
+- Direct unsubscribe links: "unsubscribe", "opt-out", "opt out", "unsub"
+- Preference management: "manage preferences", "email preferences", "subscription settings"
+- One-click unsubscribe: "click here to unsubscribe", "unsubscribe here"
+- List removal: "remove from list", "remove me", "stop receiving"
+- Marketing preferences: "marketing preferences", "communication preferences"
+- Hidden links: Links in footer, small text, or image alt text
+- Multiple formats: HTTP, HTTPS, relative URLs, query parameters
 
 Email content:
 {content}
 
 {format_instructions}
 
-Respond with only the unsubscribe URL if found, or null if no unsubscribe link is found.
+IMPORTANT:
+- Return the FULL URL including protocol (http:// or https://)
+- If the URL is relative, make it absolute based on the email domain
+- Look in both text and HTML content
+- Check footer sections and small print
+- Consider variations in wording and formatting
+- Return null only if absolutely no unsubscribe link is found
 `);
 
             const formattedPrompt = await prompt.format({
@@ -178,10 +222,124 @@ Respond with only the unsubscribe URL if found, or null if no unsubscribe link i
             const response = await openai.invoke(formattedPrompt);
             const result = await parser.parse(response.content as string);
 
-            return result.unsubscribeLink || undefined;
+            if (result.unsubscribeLink && result.confidence > 0.3) {
+                console.log('🤖 AI found unsubscribe link:', result.unsubscribeLink, 'Confidence:', result.confidence);
+                return result.unsubscribeLink;
+            }
+
+            return undefined;
         } catch (error) {
             console.error('Error extracting unsubscribe link:', error);
             return undefined;
         }
+    }
+
+    private static extractUnsubscribeLinkWithRegex(emailContent: EmailContent): string | undefined
+    {
+        const content = emailContent.htmlBody || emailContent.body || '';
+
+        // Common unsubscribe link patterns
+        const patterns = [
+            // Direct unsubscribe patterns
+            /(?:unsubscribe|opt[-\s]?out|unsub)\s*(?:here|now|link)?\s*[:\s]*\s*(https?:\/\/[^\s<>"']+)/gi,
+            /(?:click\s+here\s+to\s+)?(?:unsubscribe|opt[-\s]?out)\s*[:\s]*\s*(https?:\/\/[^\s<>"']+)/gi,
+
+            // Preference management patterns
+            /(?:manage\s+preferences?|email\s+preferences?|subscription\s+settings?)\s*[:\s]*\s*(https?:\/\/[^\s<>"']+)/gi,
+
+            // List removal patterns
+            /(?:remove\s+(?:from\s+)?list|remove\s+me|stop\s+receiving)\s*[:\s]*\s*(https?:\/\/[^\s<>"']+)/gi,
+
+            // Marketing preferences
+            /(?:marketing\s+preferences?|communication\s+preferences?)\s*[:\s]*\s*(https?:\/\/[^\s<>"']+)/gi,
+
+            // Generic unsubscribe in href attributes
+            /href\s*=\s*["']([^"']*(?:unsubscribe|opt[-\s]?out|unsub|preferences?)[^"']*)["']/gi,
+
+            // Footer unsubscribe links
+            /(?:footer|bottom)\s*[:\s]*\s*(https?:\/\/[^\s<>"']*(?:unsubscribe|opt[-\s]?out|unsub)[^\s<>"']*)/gi,
+        ];
+
+        for (const pattern of patterns) {
+            const matches = content.match(pattern);
+            if (matches && matches.length > 0) {
+                // Extract the URL from the match
+                let url = matches[ 1 ] || matches[ 0 ];
+
+                // Clean up the URL
+                url = url.replace(/["'<>]/g, '').trim();
+
+                // Validate it's a proper URL
+                if (this.isValidUrl(url)) {
+                    return url;
+                }
+            }
+        }
+
+        return undefined;
+    }
+
+    private static isValidUrl(url: string): boolean
+    {
+        try {
+            new URL(url);
+            return true;
+        } catch {
+            // Try to make it absolute if it's relative
+            if (url.startsWith('/') || url.startsWith('./')) {
+                return true; // Relative URLs are valid
+            }
+            return false;
+        }
+    }
+
+    // Test method for unsubscribe link extraction
+    static async testUnsubscribeExtraction(emailContent: EmailContent): Promise<{
+        regexResult: string | undefined;
+        aiResult: string | undefined;
+        finalResult: string | undefined;
+        contentLength: number;
+    }>
+    {
+        const regexResult = this.extractUnsubscribeLinkWithRegex(emailContent);
+        const textContent = this.extractTextContent(emailContent);
+
+        let aiResult: string | undefined;
+        try {
+            const unsubscribeSchema = z.object({
+                unsubscribeLink: z.string().url().nullable(),
+                confidence: z.number().min(0).max(1),
+                reasoning: z.string()
+            });
+            const parser = StructuredOutputParser.fromZodSchema(unsubscribeSchema);
+
+            const prompt = PromptTemplate.fromTemplate(`
+Extract unsubscribe link from email content. Look for: unsubscribe, opt-out, preferences, etc.
+
+Content: {content}
+
+{format_instructions}
+`);
+
+            const formattedPrompt = await prompt.format({
+                content: textContent,
+                format_instructions: parser.getFormatInstructions()
+            });
+
+            const response = await openai.invoke(formattedPrompt);
+            const result = await parser.parse(response.content as string);
+            aiResult = result.unsubscribeLink || undefined;
+        } catch (error) {
+            console.error('AI extraction test failed:', error);
+        }
+
+        const finalResult = regexResult || aiResult;
+
+        return {
+            regexResult,
+            aiResult,
+            finalResult,
+            contentLength: textContent.length
+        };
     }
 }

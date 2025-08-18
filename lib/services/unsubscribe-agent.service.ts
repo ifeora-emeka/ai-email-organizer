@@ -13,7 +13,6 @@ export interface UnsubscribeResult
     requiresFormFilling?: boolean;
     formData?: Record<string, string>;
     error?: string;
-    screenshotPath?: string; // For debugging
     finalUrl?: string;
 }
 
@@ -97,7 +96,7 @@ export class UnsubscribeAgentService
             } else {
                 console.log('Development: Using normal Puppeteer');
                 this.browser = await puppeteer.launch({
-                    headless: false,
+                    headless: true,
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
@@ -129,8 +128,42 @@ export class UnsubscribeAgentService
     static async closeBrowser(): Promise<void>
     {
         if (this.browser) {
-            await this.browser.close();
-            this.browser = null;
+            try {
+                // Close all pages first
+                const pages = await this.browser.pages();
+                await Promise.all(pages.map(page => page.close().catch(() => { })));
+
+                // Then close the browser
+                await this.browser.close();
+                console.log('✅ Browser closed successfully');
+            } catch (error) {
+                console.warn('⚠️ Error closing browser:', error);
+            } finally {
+                this.browser = null;
+            }
+        }
+    }
+
+    static async cleanupBrowser(): Promise<void>
+    {
+        if (this.browser) {
+            try {
+                // Close any extra pages (keep only one)
+                const pages = await this.browser.pages();
+                if (pages.length > 1) {
+                    console.log(`🧹 Cleaning up ${pages.length - 1} extra pages`);
+                    // Close all pages except the first one
+                    for (let i = 1; i < pages.length; i++) {
+                        try {
+                            await pages[ i ].close();
+                        } catch (error) {
+                            console.warn(`⚠️ Failed to close page ${i}:`, error);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠️ Error cleaning up browser:', error);
+            }
         }
     }
 
@@ -140,10 +173,12 @@ export class UnsubscribeAgentService
         userEmail?: string
     ): Promise<UnsubscribeResult>
     {
-        const browser = await this.initializeBrowser();
         let page: Page | null = null;
 
         try {
+            // Get existing browser or create new one
+            const browser = await this.initializeBrowser();
+
             // Create page with error handling
             page = await browser.newPage();
 
@@ -175,9 +210,6 @@ export class UnsubscribeAgentService
                 };
             }
 
-            // Take screenshot for debugging
-            const screenshotPath = await this.takeScreenshot(page, emailId, 'initial');
-
             // Wait for content to stabilize
             console.log('Waiting for content to stabilize...');
             await new Promise(resolve => setTimeout(resolve, 3000));
@@ -197,8 +229,7 @@ export class UnsubscribeAgentService
                 result = await this.handleDirectUnsubscribe(page, strategy, emailId);
             }
 
-            // Add final screenshot and URL
-            result.screenshotPath = await this.takeScreenshot(page, emailId, 'final');
+            // Add final URL
             result.finalUrl = page.url();
 
             // Update database
@@ -208,16 +239,14 @@ export class UnsubscribeAgentService
         } catch (error) {
             console.error('❌ Unsubscribe error:', error);
 
-            let screenshotPath: string | undefined;
             let finalUrl: string | undefined;
 
-            // Safely get screenshot and URL if page is still available
+            // Safely get URL if page is still available
             if (page && !page.isClosed()) {
                 try {
-                    screenshotPath = await this.takeScreenshot(page, emailId, 'error');
                     finalUrl = page.url();
-                } catch (screenshotError) {
-                    console.warn('⚠️ Failed to take error screenshot:', screenshotError);
+                } catch (urlError) {
+                    console.warn('⚠️ Failed to get final URL:', urlError);
                 }
             }
 
@@ -225,7 +254,6 @@ export class UnsubscribeAgentService
                 success: false,
                 message: 'Failed to unsubscribe due to unexpected error',
                 error: error instanceof Error ? error.message : 'Unknown error',
-                screenshotPath,
                 finalUrl,
             };
 
@@ -236,6 +264,7 @@ export class UnsubscribeAgentService
             if (page && !page.isClosed()) {
                 try {
                     await page.close();
+                    console.log('✅ Page closed successfully');
                 } catch (closeError) {
                     console.warn('⚠️ Failed to close page:', closeError);
                 }
@@ -298,28 +327,7 @@ export class UnsubscribeAgentService
         }
     }
 
-    private static async takeScreenshot(page: Page, emailId: string, stage: string): Promise<string | undefined>
-    {
-        try {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filename = `unsubscribe-${emailId}-${stage}-${timestamp}.png`;
-            const path = `./screenshots/${filename}`;
 
-            // Take screenshot as buffer first, then save to file
-            const screenshotBuffer = await page.screenshot({
-                fullPage: true,
-                type: 'png'
-            });
-
-            // Note: In a real implementation, you'd save the buffer to file
-            // For now, we'll just return the filename
-            console.log(`📸 Screenshot taken: ${filename}`);
-            return filename;
-        } catch (error) {
-            console.warn('📸 Screenshot failed:', error);
-            return undefined;
-        }
-    }
 
     private static async analyzePageContent(page: Page): Promise<string>
     {
@@ -393,6 +401,35 @@ export class UnsubscribeAgentService
         // Get complete HTML structure of the page
         const pageHTML = await page.evaluate(() =>
         {
+            // Helper function to generate nth-child selector
+            const generateNthChildSelector = (element: Element): string =>
+            {
+                // If element has a name attribute, use it as primary selector
+                if (element.getAttribute('name')) {
+                    return `[name="${element.getAttribute('name')}"]`;
+                }
+
+                // If element has an id, use it as fallback
+                if (element.id) {
+                    return `#${element.id}`;
+                }
+
+                // Generate nth-child selector
+                const tagName = element.tagName.toLowerCase();
+                const parent = element.parentElement;
+
+                if (parent) {
+                    const siblings = Array.from(parent.children).filter(child =>
+                        child.tagName.toLowerCase() === tagName
+                    );
+                    const index = siblings.indexOf(element) + 1;
+                    return `${tagName}:nth-child(${index})`;
+                }
+
+                // Fallback to generic selector
+                return tagName;
+            };
+
             return {
                 forms: Array.from(document.forms).map(form => ({
                     action: form.action,
@@ -418,11 +455,8 @@ export class UnsubscribeAgentService
                                     text: opt.textContent,
                                     selected: opt.selected
                                 })) : undefined,
-                            // Get unique selector for this element
-                            selector: element.id ? `#${element.id}` :
-                                element.name ? `[name="${element.name}"]` :
-                                    element.className ? `.${element.className.split(' ').join('.')}` :
-                                        `${element.tagName.toLowerCase()}[type="${element.type}"]`
+                            // Get unique selector for this element using nth-child
+                            selector: generateNthChildSelector(element)
                         };
                     })
                 })),
@@ -435,10 +469,7 @@ export class UnsubscribeAgentService
                         name: button.name,
                         id: button.id,
                         className: button.className,
-                        selector: button.id ? `#${button.id}` :
-                            button.name ? `[name="${button.name}"]` :
-                                button.className ? `.${button.className.split(' ').join('.')}` :
-                                    `${button.tagName.toLowerCase()}[type="${button.type}"]`
+                        selector: generateNthChildSelector(button)
                     };
                 }),
                 pageTitle: document.title,
@@ -514,15 +545,27 @@ IMPORTANT RULES:
 - For radio buttons: select the most appropriate option for unsubscribing
 - For dropdowns: select options that indicate unsubscribing or "No longer interested"
 
+CRITICAL SELECTOR RULES:
+- ONLY use selectors that exist in the provided HTML structure
+- PREFER nth-child selectors for better reliability (e.g., "input:nth-child(2)", "textarea:nth-child(1)")
+- Use name attributes when available: "[name='email']"
+- Use ID attributes as fallback: "#email"
+- Use nth-child selectors for elements without name or ID: "input:nth-child(3)"
+- DO NOT generate UUIDs or random selectors
+- DO NOT use class-based selectors as they can be unreliable
+- Always verify the selector exists in the HTML before using it
+- For text inputs and textareas, prefer nth-child selectors over class-based ones
+- Format: "tagName:nth-child(position)" where position is the element's position among siblings of the same type
+
 For each field, provide:
-- fieldName: the name or identifier
+- fieldName: the name or identifier from the HTML
 - fieldType: the HTML input type
 - action: what to do (fill, select, check, uncheck, click)
 - value: what value to use (for fill/select actions)
-- selector: the exact CSS selector to target this element
+- selector: the exact CSS selector that exists in the HTML
 
 For the submit action, find the button that will complete the unsubscribe process.
-don't return hidden fields or spam detection fields.
+Do not return hidden fields or spam detection fields.
 
 CRITICAL: Return only valid JSON without markdown formatting.
 
@@ -547,10 +590,81 @@ CRITICAL: Return only valid JSON without markdown formatting.
             };
         } catch (error) {
             console.error('❌ AI action plan failed:', error);
+
+            // Fallback: Use actual selectors from the HTML structure
+            const fallbackActions = [];
+
+            if (pageHTML.forms && pageHTML.forms.length > 0) {
+                const form = pageHTML.forms[ 0 ];
+
+                // Add email field if user email is provided
+                if (userEmail) {
+                    const emailField = form.elements.find((el: any) =>
+                        el.type === 'email' ||
+                        el.name?.toLowerCase().includes('email') ||
+                        el.placeholder?.toLowerCase().includes('email')
+                    );
+                    if (emailField) {
+                        fallbackActions.push({
+                            fieldName: emailField.name || 'email',
+                            fieldType: emailField.type || 'email',
+                            action: 'fill' as const,
+                            value: userEmail,
+                            selector: emailField.selector
+                        });
+                    }
+                }
+
+                // Add reason field
+                const reasonField = form.elements.find((el: any) =>
+                    el.name?.toLowerCase().includes('reason') ||
+                    el.name?.toLowerCase().includes('why')
+                );
+                if (reasonField) {
+                    fallbackActions.push({
+                        fieldName: reasonField.name || 'reason',
+                        fieldType: reasonField.type || 'text',
+                        action: 'fill' as const,
+                        value: 'No longer interested',
+                        selector: reasonField.selector
+                    });
+                }
+
+                // Add confirmation checkbox
+                const confirmField = form.elements.find((el: any) =>
+                    el.type === 'checkbox' && (
+                        el.name?.toLowerCase().includes('confirm') ||
+                        el.name?.toLowerCase().includes('agree') ||
+                        el.name?.toLowerCase().includes('accept')
+                    )
+                );
+                if (confirmField) {
+                    fallbackActions.push({
+                        fieldName: confirmField.name || 'confirm',
+                        fieldType: 'checkbox',
+                        action: 'check' as const,
+                        selector: confirmField.selector
+                    });
+                }
+            }
+
+            // Find submit button
+            let submitSelector = 'input[type="submit"], button[type="submit"]';
+            if (pageHTML.buttons && pageHTML.buttons.length > 0) {
+                const submitButton = pageHTML.buttons.find((btn: any) =>
+                    btn.type === 'submit' ||
+                    btn.text?.toLowerCase().includes('unsubscribe') ||
+                    btn.text?.toLowerCase().includes('submit')
+                );
+                if (submitButton) {
+                    submitSelector = submitButton.selector;
+                }
+            }
+
             return {
-                fieldActions: [],
-                submitAction: { selector: 'input[type="submit"], button[type="submit"]', action: 'click' },
-                recommendations: [ 'Use fallback form submission' ]
+                fieldActions: fallbackActions,
+                submitAction: { selector: submitSelector, action: 'click' as const },
+                recommendations: [ 'Using fallback form submission with actual HTML selectors' ]
             };
         }
     }
@@ -820,26 +934,50 @@ CRITICAL: Return only valid JSON without markdown formatting.
 
             // Execute AI-determined actions
             console.log('🤖 Executing AI-determined form actions...');
+            let aiActionsSuccessful = 0;
 
             for (const fieldAction of formAnalysis.fieldActions) {
                 try {
                     console.log(`🎯 Executing action: ${fieldAction.action} on ${fieldAction.fieldName} (${fieldAction.fieldType})`);
 
+                    // Validate selector before using it
+                    // if (!this.validateSelector(fieldAction.selector)) {
+                    //     console.warn(`⚠️ Invalid selector: ${fieldAction.selector} for ${fieldAction.fieldName}`);
+                    //     continue;
+                    // }
+
+                    // Check if element exists on the page
+                    const elementExists = await page.$(fieldAction.selector);
+                    console.log('🔍 Element exists:', elementExists);
+                    if (!elementExists) {
+                        console.warn(`⚠️ Selector not found on page: ${fieldAction.selector} for ${fieldAction.fieldName}`);
+                        continue;
+                    }
+
                     switch (fieldAction.action) {
                         case 'fill':
                             await page.waitForSelector(fieldAction.selector, { timeout: 3000 });
                             await page.focus(fieldAction.selector);
-                            await page.keyboard.down('Control');
-                            await page.keyboard.press('a');
-                            await page.keyboard.up('Control');
+
+                            // Clear existing content using evaluate for better reliability
+                            await page.evaluate((sel) =>
+                            {
+                                const element = document.querySelector(sel) as HTMLInputElement | HTMLTextAreaElement;
+                                if (element) {
+                                    element.value = 'test';
+                                }
+                            }, fieldAction.selector);
+
                             await page.type(fieldAction.selector, fieldAction.value || '', { delay: 50 });
                             console.log(`✅ Filled ${fieldAction.fieldName} with: ${fieldAction.value}`);
+                            aiActionsSuccessful++;
                             break;
 
                         case 'select':
                             await page.waitForSelector(fieldAction.selector, { timeout: 3000 });
                             await page.select(fieldAction.selector, fieldAction.value || '');
                             console.log(`✅ Selected ${fieldAction.value} in ${fieldAction.fieldName}`);
+                            aiActionsSuccessful++;
                             break;
 
                         case 'check':
@@ -849,6 +987,7 @@ CRITICAL: Return only valid JSON without markdown formatting.
                                 await page.click(fieldAction.selector);
                                 console.log(`✅ Checked ${fieldAction.fieldName}`);
                             }
+                            aiActionsSuccessful++;
                             break;
 
                         case 'uncheck':
@@ -858,17 +997,25 @@ CRITICAL: Return only valid JSON without markdown formatting.
                                 await page.click(fieldAction.selector);
                                 console.log(`✅ Unchecked ${fieldAction.fieldName}`);
                             }
+                            aiActionsSuccessful++;
                             break;
 
                         case 'click':
                             await page.waitForSelector(fieldAction.selector, { timeout: 3000 });
                             await page.click(fieldAction.selector);
                             console.log(`✅ Clicked ${fieldAction.fieldName}`);
+                            aiActionsSuccessful++;
                             break;
                     }
                 } catch (error) {
                     console.warn(`⚠️ Failed to execute action on ${fieldAction.fieldName}:`, error);
                 }
+            }
+
+            // If AI actions failed, use fallback field filling
+            if (aiActionsSuccessful === 0) {
+                console.log('⚠️ AI actions failed, using fallback field filling...');
+                await this.fillFormFieldsFallback(page, userEmail || '', formData);
             }
 
             // Handle checkboxes and confirmations
@@ -879,6 +1026,9 @@ CRITICAL: Return only valid JSON without markdown formatting.
                 const checkboxSelectors = [
                     'input[type="checkbox"][name*="confirm" i]',
                     'input[type="checkbox"][id*="confirm" i]',
+                    'input[type="checkbox"]:nth-child(1)',
+                    'input[type="checkbox"]:nth-child(2)',
+                    'input[type="checkbox"]:nth-child(3)',
                     'input[type="checkbox"]', // Fallback to any checkbox
                 ];
 
@@ -982,16 +1132,220 @@ CRITICAL: Return only valid JSON without markdown formatting.
         }
     }
 
-    // Rest of the methods remain the same...
-    private static generateSelector(element: Element): string
+    // Generate nth-child selector for better reliability
+    private static generateNthChildSelector(element: Element): string
     {
+        // If element has a name attribute, use it as primary selector
+        if (element.getAttribute('name')) {
+            return `[name="${element.getAttribute('name')}"]`;
+        }
+
+        // If element has an id, use it as fallback
         if (element.id) {
             return `#${element.id}`;
         }
-        if (element.className) {
-            return `.${element.className.split(' ').join('.')}`;
+
+        // Generate nth-child selector
+        const tagName = element.tagName.toLowerCase();
+        const parent = element.parentElement;
+
+        if (parent) {
+            const siblings = Array.from(parent.children).filter(child =>
+                child.tagName.toLowerCase() === tagName
+            );
+            const index = siblings.indexOf(element) + 1;
+            return `${tagName}:nth-child(${index})`;
         }
-        return element.tagName.toLowerCase();
+
+        // Fallback to generic selector
+        return tagName;
+    }
+
+    // Legacy method for backward compatibility
+    private static generateSelector(element: Element): string
+    {
+        return this.generateNthChildSelector(element);
+    }
+
+    private static validateSelector(selector: string): boolean
+    {
+        // Check if selector looks like a UUID (which would be invalid)
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidPattern.test(selector.replace(/^[.#]/, ''))) {
+            return false;
+        }
+
+        // Check if selector is too generic
+        if (selector === 'div' || selector === 'span' || selector === 'p') {
+            return false;
+        }
+
+        // Check if selector contains valid CSS syntax
+        try {
+            // Basic validation - selector should start with valid characters
+            if (!/^[.#\w\[\]="'\-_\s]+$/.test(selector)) {
+                return false;
+            }
+        } catch {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static async fillFormFieldsFallback(
+        page: Page,
+        userEmail: string,
+        formData: UnsubscribeFormData
+    ): Promise<void>
+    {
+        console.log('🔄 Using fallback form field filling...');
+
+        // First, let's log all form elements for debugging
+        const formElements = await page.evaluate(() =>
+        {
+            return Array.from(document.querySelectorAll('input, textarea, select')).map(el => ({
+                tagName: el.tagName.toLowerCase(),
+                type: (el as HTMLInputElement).type,
+                name: (el as HTMLInputElement).name,
+                id: el.id,
+                placeholder: (el as HTMLInputElement).placeholder,
+                className: el.className
+            }));
+        });
+        console.log('🔍 Found form elements:', formElements);
+
+        // Enhanced field mappings with nth-child selectors
+        const fieldMappings = [
+            {
+                data: userEmail,
+                selectors: [
+                    'input[type="email"]',
+                    'input[name*="email" i]',
+                    'input[placeholder*="email" i]',
+                    'input[id*="email" i]',
+                    'input[name*="e-mail" i]',
+                    'input[placeholder*="e-mail" i]',
+                    'input[type="text"][name*="email" i]',
+                    // Add nth-child fallbacks
+                    'input:nth-child(1)',
+                    'input:nth-child(2)',
+                    'input:nth-child(3)',
+                ],
+                name: 'email',
+                required: true,
+            },
+            {
+                data: formData.reason || 'No longer interested',
+                selectors: [
+                    'select[name*="reason" i]',
+                    'input[name*="reason" i]',
+                    'textarea[name*="reason" i]',
+                    'select[id*="reason" i]',
+                    'select[name*="why" i]',
+                    'input[name*="why" i]',
+                    'textarea[name*="why" i]',
+                    'input[type="text"][name*="reason" i]',
+                    'textarea[name*="comment" i]',
+                    'textarea[name*="feedback" i]',
+                    'textarea[name*="message" i]',
+                    'textarea[name*="text" i]',
+                    'textarea[placeholder*="reason" i]',
+                    'textarea[placeholder*="why" i]',
+                    'textarea[placeholder*="comment" i]',
+                    'textarea[placeholder*="feedback" i]',
+                    'textarea[placeholder*="message" i]',
+                    // Add nth-child fallbacks
+                    'textarea:nth-child(1)',
+                    'textarea:nth-child(2)',
+                    'textarea:nth-child(3)',
+                    'select:nth-child(1)',
+                    'select:nth-child(2)',
+                    'input:nth-child(4)',
+                    'input:nth-child(5)',
+                ],
+                name: 'reason',
+                required: false,
+            },
+            {
+                data: formData.confirm ? 'true' : 'false',
+                selectors: [
+                    'input[type="checkbox"][name*="confirm" i]',
+                    'input[type="checkbox"][id*="confirm" i]',
+                    'input[type="checkbox"][name*="agree" i]',
+                    'input[type="checkbox"][name*="accept" i]',
+                    // Add nth-child fallbacks
+                    'input[type="checkbox"]:nth-child(1)',
+                    'input[type="checkbox"]:nth-child(2)',
+                    'input[type="checkbox"]:nth-child(3)',
+                ],
+                name: 'confirmation',
+                required: false,
+                type: 'checkbox',
+            },
+        ];
+
+        // Try to fill each field type
+        for (const fieldMapping of fieldMappings) {
+            let filled = false;
+
+            for (const selector of fieldMapping.selectors) {
+                try {
+                    // Check if element exists
+                    const element = await page.$(selector);
+                    if (!element) continue;
+
+                    // Get element type
+                    const elementType = await page.$eval(selector, el => el.tagName.toLowerCase());
+                    const inputType = await page.$eval(selector, el => (el as HTMLInputElement).type);
+
+                    if (elementType === 'select') {
+                        // Handle select dropdown
+                        await page.waitForSelector(selector, { timeout: 3000 });
+                        await page.select(selector, fieldMapping.data);
+                        console.log(`✅ Filled select field ${fieldMapping.name} with: ${fieldMapping.data}`);
+                        filled = true;
+                        break;
+                    } else if (elementType === 'input' && inputType === 'checkbox') {
+                        // Handle checkbox
+                        await page.waitForSelector(selector, { timeout: 3000 });
+                        const isChecked = await page.$eval(selector, el => (el as HTMLInputElement).checked);
+                        if (!isChecked) {
+                            await page.click(selector);
+                            console.log(`✅ Checked checkbox field ${fieldMapping.name}`);
+                        }
+                        filled = true;
+                        break;
+                    } else if (elementType === 'input' || elementType === 'textarea') {
+                        // Handle text input and textarea
+                        await page.waitForSelector(selector, { timeout: 3000 });
+                        await page.focus(selector);
+
+                        // Clear existing content
+                        await page.evaluate((sel) =>
+                        {
+                            const element = document.querySelector(sel) as HTMLInputElement | HTMLTextAreaElement;
+                            if (element) {
+                                element.value = '';
+                            }
+                        }, selector);
+
+                        // Type the new content
+                        await page.type(selector, fieldMapping.data, { delay: 50 });
+                        console.log(`✅ Filled ${elementType} field ${fieldMapping.name} with: ${fieldMapping.data}`);
+                        filled = true;
+                        break;
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Failed to fill field ${fieldMapping.name} with selector ${selector}:`, error);
+                    continue;
+                }
+            }
+
+            if (!filled) {
+                console.warn(`⚠️ Could not fill field ${fieldMapping.name} with any selector`);
+            }
+        }
     }
 
     private static async updateUnsubscribeTask(
@@ -1005,7 +1359,7 @@ CRITICAL: Return only valid JSON without markdown formatting.
                 data: {
                     status: result.success ? 'completed' : 'failed',
                     successMessage: result.success ? result.message : undefined,
-                    errorMessage: result.error || `${result.screenshotPath ? 'Screenshot: ' + result.screenshotPath : ''} ${result.finalUrl ? 'Final URL: ' + result.finalUrl : ''}`.trim(),
+                    errorMessage: result.error || `${result.finalUrl ? 'Final URL: ' + result.finalUrl : ''}`.trim(),
                     lastAttempt: new Date(),
                     attempts: {
                         increment: 1,
@@ -1029,65 +1383,73 @@ CRITICAL: Return only valid JSON without markdown formatting.
         let success = 0;
         let failed = 0;
 
-        // Process in batches to avoid overwhelming servers
-        for (let i = 0; i < emailIds.length; i += maxConcurrent) {
-            const batch = emailIds.slice(i, i + maxConcurrent);
+        try {
+            // Process in batches to avoid overwhelming servers
+            for (let i = 0; i < emailIds.length; i += maxConcurrent) {
+                const batch = emailIds.slice(i, i + maxConcurrent);
 
-            const batchPromises = batch.map(async (emailId) =>
-            {
-                try {
-                    const email = await prisma.email.findUnique({
-                        where: { id: emailId },
-                        select: { unsubscribeLink: true },
-                    });
+                const batchPromises = batch.map(async (emailId) =>
+                {
+                    try {
+                        const email = await prisma.email.findUnique({
+                            where: { id: emailId },
+                            select: { unsubscribeLink: true },
+                        });
 
-                    if (!email?.unsubscribeLink) {
+                        if (!email?.unsubscribeLink) {
+                            return {
+                                success: false,
+                                message: 'No unsubscribe link found',
+                            };
+                        }
+
+                        await prisma.unsubscribeTask.upsert({
+                            where: { emailId },
+                            update: {
+                                status: 'pending',
+                                attempts: { increment: 1 },
+                                lastAttempt: new Date(),
+                            },
+                            create: {
+                                emailId,
+                                unsubscribeLink: email.unsubscribeLink,
+                                status: 'pending',
+                                attempts: 1,
+                                lastAttempt: new Date(),
+                            },
+                        });
+
+                        return await this.unsubscribeFromEmail(emailId, email.unsubscribeLink, userEmail);
+                    } catch (error) {
                         return {
                             success: false,
-                            message: 'No unsubscribe link found',
+                            message: 'Processing failed',
+                            error: error instanceof Error ? error.message : 'Unknown error',
                         };
                     }
+                });
 
-                    await prisma.unsubscribeTask.upsert({
-                        where: { emailId },
-                        update: {
-                            status: 'pending',
-                            attempts: { increment: 1 },
-                            lastAttempt: new Date(),
-                        },
-                        create: {
-                            emailId,
-                            unsubscribeLink: email.unsubscribeLink,
-                            status: 'pending',
-                            attempts: 1,
-                            lastAttempt: new Date(),
-                        },
-                    });
+                const batchResults = await Promise.all(batchPromises);
+                results.push(...batchResults);
 
-                    return await this.unsubscribeFromEmail(emailId, email.unsubscribeLink, userEmail);
-                } catch (error) {
-                    return {
-                        success: false,
-                        message: 'Processing failed',
-                        error: error instanceof Error ? error.message : 'Unknown error',
-                    };
+                // Count results
+                batchResults.forEach(result =>
+                {
+                    if (result.success) success++;
+                    else failed++;
+                });
+
+                // Clean up browser after each batch
+                await this.cleanupBrowser();
+
+                // Delay between batches
+                if (i + maxConcurrent < emailIds.length) {
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
                 }
-            });
-
-            const batchResults = await Promise.all(batchPromises);
-            results.push(...batchResults);
-
-            // Count results
-            batchResults.forEach(result =>
-            {
-                if (result.success) success++;
-                else failed++;
-            });
-
-            // Delay between batches
-            if (i + maxConcurrent < emailIds.length) {
-                await new Promise(resolve => setTimeout(resolve, delayMs));
             }
+        } finally {
+            // Final cleanup
+            await this.cleanupBrowser();
         }
 
         return { success, failed, results };
@@ -1112,31 +1474,39 @@ CRITICAL: Return only valid JSON without markdown formatting.
         let success = 0;
         let failed = 0;
 
-        for (const task of failedTasks) {
-            try {
-                const email = await prisma.email.findUnique({
-                    where: { id: task.emailId },
-                    select: { unsubscribeLink: true },
-                });
+        try {
+            for (const task of failedTasks) {
+                try {
+                    const email = await prisma.email.findUnique({
+                        where: { id: task.emailId },
+                        select: { unsubscribeLink: true },
+                    });
 
-                if (!email?.unsubscribeLink) {
+                    if (!email?.unsubscribeLink) {
+                        failed++;
+                        continue;
+                    }
+
+                    const result = await this.unsubscribeFromEmail(
+                        task.emailId,
+                        email.unsubscribeLink,
+                        userEmail
+                    );
+
+                    if (result.success) success++;
+                    else failed++;
+
+                    // Clean up after each retry
+                    await this.cleanupBrowser();
+
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                } catch {
                     failed++;
-                    continue;
                 }
-
-                const result = await this.unsubscribeFromEmail(
-                    task.emailId,
-                    email.unsubscribeLink,
-                    userEmail
-                );
-
-                if (result.success) success++;
-                else failed++;
-
-                await new Promise(resolve => setTimeout(resolve, 3000));
-            } catch {
-                failed++;
             }
+        } finally {
+            // Final cleanup
+            await this.cleanupBrowser();
         }
 
         return { success, failed };
@@ -1295,6 +1665,9 @@ CRITICAL: Return only valid JSON without markdown formatting.
             'input[type="checkbox"][name*="agree" i]',
             'input[type="checkbox"][name*="accept" i]',
             'input[type="checkbox"][name*="unsubscribe" i]',
+            'input[type="checkbox"]:nth-child(1)',
+            'input[type="checkbox"]:nth-child(2)',
+            'input[type="checkbox"]:nth-child(3)',
         ];
 
         for (const selector of checkboxSelectors) {
@@ -1358,6 +1731,37 @@ CRITICAL: Return only valid JSON without markdown formatting.
             }
 
             return false;
+        }
+    }
+
+    // Get browser status for debugging
+    static async getBrowserStatus(): Promise<{
+        isInitialized: boolean;
+        pageCount: number;
+        isConnected: boolean;
+    }>
+    {
+        if (!this.browser) {
+            return {
+                isInitialized: false,
+                pageCount: 0,
+                isConnected: false,
+            };
+        }
+
+        try {
+            const pages = await this.browser.pages();
+            return {
+                isInitialized: true,
+                pageCount: pages.length,
+                isConnected: this.browser.isConnected(),
+            };
+        } catch (error) {
+            return {
+                isInitialized: true,
+                pageCount: 0,
+                isConnected: false,
+            };
         }
     }
 
@@ -1502,16 +1906,14 @@ CRITICAL: Return only valid JSON without markdown formatting.
         };
     }
 
-    // Cleanup old screenshots and logs
+    // Cleanup old tasks
     static async cleanup(olderThanDays: number = 30): Promise<{
-        deletedScreenshots: number;
         deletedTasks: number;
     }>
     {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 
-        let deletedScreenshots = 0;
         let deletedTasks = 0;
 
         try {
@@ -1524,14 +1926,12 @@ CRITICAL: Return only valid JSON without markdown formatting.
             });
             deletedTasks = count;
 
-            // Note: Screenshot cleanup would require file system operations
-            // This is a placeholder for the logic
             console.log(`Cleanup completed: ${deletedTasks} tasks deleted`);
 
         } catch (error) {
             console.error('Cleanup failed:', error);
         }
 
-        return { deletedScreenshots, deletedTasks };
+        return { deletedTasks };
     }
 }
